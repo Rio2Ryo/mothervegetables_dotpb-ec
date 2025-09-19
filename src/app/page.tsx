@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
+import ProductCards from '@/components/ProductCards'
 import ProjectOverview from '@/components/ProjectOverview'
 import IndustryApproach from '@/components/IndustryApproach'
 import TeamMembers from '@/components/TeamMembers'
@@ -30,6 +31,7 @@ export default function Home() {
       <main className="min-h-screen text-white relative">
         <Header />
         <Hero />
+        <ProductCards />
         <ProjectOverview />
         <IndustryApproach />
         <TeamMembers />
