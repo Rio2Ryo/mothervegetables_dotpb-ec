@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const first = parseInt(searchParams.get('first') || '20');
     const after = searchParams.get('after') || undefined;
 
-    const { data, error } = await shopifyClient.query({
+    const result = await shopifyClient.query({
       query: GET_COLLECTIONS,
       variables: {
         first,
@@ -16,15 +16,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (error) {
-      console.error('Shopify GraphQL Error:', error);
+    if (result.error) {
+      console.error('Shopify GraphQL Error:', result.error);
       return NextResponse.json(
-        { error: 'Failed to fetch collections', details: error.message },
+        { error: 'Failed to fetch collections', details: result.error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(

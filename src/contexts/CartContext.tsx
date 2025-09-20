@@ -197,7 +197,7 @@ interface CartContextType {
   clearCart: () => void
   formatPrice: (amount: string, originalCurrencyCode: string) => string
   syncWithShopify: () => Promise<void>
-  createShopifyCart: () => Promise<void>
+  createShopifyCart: () => Promise<{ id: string; checkoutUrl: string; lines?: unknown } | undefined>
   getCurrentCurrency: () => { code: string; locale: string; symbol: string }
 }
 

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data, error } = await shopifyClient.query({
+    const result = await shopifyClient.query({
       query: SEARCH_PRODUCTS,
       variables: {
         query,
@@ -25,15 +25,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (error) {
-      console.error('Shopify GraphQL Error:', error);
+    if (result.error) {
+      console.error('Shopify GraphQL Error:', result.error);
       return NextResponse.json(
-        { error: 'Failed to search products', details: error.message },
+        { error: 'Failed to search products', details: result.error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(

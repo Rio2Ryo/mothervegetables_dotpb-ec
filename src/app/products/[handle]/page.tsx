@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
-import { useQuery } from '@apollo/client'
+import { useQuery } from '@apollo/client/react'
 import { GET_PRODUCT_BY_HANDLE } from '@/lib/shopify-queries'
 import { ShopifyProduct, ShopifyProductVariant, ShopifyImage } from '@/types/shopify'
 import { useState, useEffect } from 'react'

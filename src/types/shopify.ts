@@ -1,5 +1,32 @@
 // Shopify GraphQL API Types
 
+export interface ShopifyImage {
+  id: string;
+  url: string;
+  altText?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface ShopifyProductVariant {
+  id: string;
+  title: string;
+  price: {
+    amount: string;
+    currencyCode: string;
+  };
+  compareAtPrice?: {
+    amount: string;
+    currencyCode: string;
+  };
+  availableForSale: boolean;
+  selectedOptions: Array<{
+    name: string;
+    value: string;
+  }>;
+  image?: ShopifyImage;
+}
+
 export interface ShopifyProduct {
   id: string;
   title: string;
@@ -12,38 +39,12 @@ export interface ShopifyProduct {
   updatedAt: string;
   images: {
     edges: Array<{
-      node: {
-        id: string;
-        url: string;
-        altText?: string;
-        width?: number;
-        height?: number;
-      };
+      node: ShopifyImage;
     }>;
   };
   variants: {
     edges: Array<{
-      node: {
-        id: string;
-        title: string;
-        price: {
-          amount: string;
-          currencyCode: string;
-        };
-        compareAtPrice?: {
-          amount: string;
-          currencyCode: string;
-        };
-        availableForSale: boolean;
-        selectedOptions: Array<{
-          name: string;
-          value: string;
-        }>;
-        image?: {
-          url: string;
-          altText?: string;
-        };
-      };
+      node: ShopifyProductVariant;
     }>;
   };
   options: Array<{

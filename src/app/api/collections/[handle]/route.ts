@@ -19,27 +19,27 @@ export async function GET(
       );
     }
 
-    const { data, error } = await shopifyClient.query({
+    const result = await shopifyClient.query({
       query: GET_COLLECTION_BY_HANDLE,
       variables: { handle, first, after },
     });
 
-    if (error) {
-      console.error('Shopify GraphQL Error:', error);
+    if (result.error) {
+      console.error('Shopify GraphQL Error:', result.error);
       return NextResponse.json(
-        { error: 'Failed to fetch collection', details: error.message },
+        { error: 'Failed to fetch collection', details: result.error.message },
         { status: 500 }
       );
     }
 
-    if (!data.collection) {
+    if (!result.data.collection) {
       return NextResponse.json(
         { error: 'Collection not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(

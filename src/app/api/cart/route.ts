@@ -15,27 +15,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data, error } = await shopifyClient.mutate({
+    const result = await shopifyClient.mutate({
       mutation: CREATE_CART_DETAILED,
       variables: { lines },
     });
 
-    if (error) {
-      console.error('Shopify GraphQL Error:', error);
+    if (result.errors) {
+      console.error('Shopify GraphQL Error:', result.errors);
       return NextResponse.json(
-        { error: 'Failed to create cart', details: error.message },
+        { error: 'Failed to create cart', details: result.errors[0].message },
         { status: 500 }
       );
     }
 
-    if ((data as any).cartCreate.userErrors.length > 0) {
+    const cartData = result.data as { cartCreate: { userErrors: Array<{ message: string }>; cart: unknown } };
+    
+    if (cartData.cartCreate.userErrors.length > 0) {
       return NextResponse.json(
-        { error: 'Cart creation failed', userErrors: (data as any).cartCreate.userErrors },
+        { error: 'Cart creation failed', userErrors: cartData.cartCreate.userErrors },
         { status: 400 }
       );
     }
 
-    return NextResponse.json((data as any).cartCreate.cart);
+    return NextResponse.json(cartData.cartCreate.cart);
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
@@ -71,7 +73,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json((data as any).cart);
+    const cartData = data as { cart: unknown };
+    return NextResponse.json(cartData.cart);
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
@@ -95,7 +98,7 @@ export async function PUT(request: NextRequest) {
     }
 
     let mutation;
-    let variables: { cartId: string; lines: Array<{ merchandiseId: string; quantity: number }> };
+    let variables: { cartId: string; lines?: Array<{ merchandiseId: string; quantity: number }>; lineIds?: string[] };
 
     if (action === 'add') {
       mutation = ADD_TO_CART;
@@ -122,16 +125,17 @@ export async function PUT(request: NextRequest) {
 
         // 3. 既存のラインを全て削除
         if (existingLineIds.length > 0) {
-          const { data: removeData, error: removeError } = await shopifyClient.mutate({
+          const removeResult = await shopifyClient.mutate({
             mutation: REMOVE_FROM_CART,
             variables: { cartId, lineIds: existingLineIds },
           });
 
-          if (removeError) {
-            console.error('Remove lines error:', removeError);
-            throw new Error(`Failed to remove existing lines: ${removeError.message}`);
+          if (removeResult.errors) {
+            console.error('Remove lines error:', removeResult.errors);
+            throw new Error(`Failed to remove existing lines: ${removeResult.errors[0].message}`);
           }
 
+          const removeData = removeResult.data as { cartLinesRemove: { userErrors: Array<{ message: string }> } };
           if (removeData.cartLinesRemove.userErrors.length > 0) {
             console.error('Remove user errors:', removeData.cartLinesRemove.userErrors);
             throw new Error(`Failed to remove lines: ${removeData.cartLinesRemove.userErrors.map(e => e.message).join(', ')}`);
@@ -140,16 +144,17 @@ export async function PUT(request: NextRequest) {
 
         // 4. 新しいラインを追加
         if (lines.length > 0) {
-          const { data: addData, error: addError } = await shopifyClient.mutate({
+          const addResult = await shopifyClient.mutate({
             mutation: ADD_TO_CART,
             variables: { cartId, lines },
           });
 
-          if (addError) {
-            console.error('Add lines error:', addError);
-            throw new Error(`Failed to add new lines: ${addError.message}`);
+          if (addResult.errors) {
+            console.error('Add lines error:', addResult.errors);
+            throw new Error(`Failed to add new lines: ${addResult.errors[0].message}`);
           }
 
+          const addData = addResult.data as { cartLinesAdd: { userErrors: Array<{ message: string }>; cart: unknown } };
           if (addData.cartLinesAdd.userErrors.length > 0) {
             console.error('Add user errors:', addData.cartLinesAdd.userErrors);
             throw new Error(`Failed to add lines: ${addData.cartLinesAdd.userErrors.map(e => e.message).join(', ')}`);
@@ -184,20 +189,24 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { data, error } = await shopifyClient.mutate({
+    const result = await shopifyClient.mutate({
       mutation,
       variables,
     });
 
-    if (error) {
-      console.error('Shopify GraphQL Error:', error);
+    if (result.errors) {
+      console.error('Shopify GraphQL Error:', result.errors);
       return NextResponse.json(
-        { error: 'Failed to update cart', details: error.message },
+        { error: 'Failed to update cart', details: result.errors[0].message },
         { status: 500 }
       );
     }
 
-    const mutationResult = action === 'add' ? (data as any).cartLinesAdd : (data as any).cartLinesRemove;
+    const mutationData = result.data as { 
+      cartLinesAdd: { userErrors: Array<{ message: string }>; cart: unknown }; 
+      cartLinesRemove: { userErrors: Array<{ message: string }>; cart: unknown } 
+    };
+    const mutationResult = action === 'add' ? mutationData.cartLinesAdd : mutationData.cartLinesRemove;
 
     if (mutationResult.userErrors.length > 0) {
       return NextResponse.json(

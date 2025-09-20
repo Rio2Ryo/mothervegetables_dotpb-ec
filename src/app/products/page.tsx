@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
-import { useQuery } from '@apollo/client'
+import { useQuery } from '@apollo/client/react'
 import { GET_PRODUCTS } from '@/lib/shopify-queries'
 import { ShopifyProduct } from '@/types/shopify'
 import { useRouter } from 'next/navigation'
