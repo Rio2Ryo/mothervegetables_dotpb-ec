@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import CartIcon from '@/components/cart/CartIcon'
 

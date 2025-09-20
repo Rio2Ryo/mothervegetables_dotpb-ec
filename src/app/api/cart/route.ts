@@ -28,14 +28,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (data.cartCreate.userErrors.length > 0) {
+    if ((data as any).cartCreate.userErrors.length > 0) {
       return NextResponse.json(
-        { error: 'Cart creation failed', userErrors: data.cartCreate.userErrors },
+        { error: 'Cart creation failed', userErrors: (data as any).cartCreate.userErrors },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(data.cartCreate.cart);
+    return NextResponse.json((data as any).cartCreate.cart);
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data.cart);
+    return NextResponse.json((data as any).cart);
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
@@ -197,7 +197,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const mutationResult = action === 'add' ? data.cartLinesAdd : data.cartLinesRemove;
+    const mutationResult = action === 'add' ? (data as any).cartLinesAdd : (data as any).cartLinesRemove;
 
     if (mutationResult.userErrors.length > 0) {
       return NextResponse.json(
