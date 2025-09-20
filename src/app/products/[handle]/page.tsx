@@ -4,7 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { useQuery } from '@apollo/client'
 import { GET_PRODUCT_BY_HANDLE } from '@/lib/shopify-queries'
-import { ShopifyProduct } from '@/types/shopify'
+import { ShopifyProduct, ShopifyProductVariant, ShopifyImage } from '@/types/shopify'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
@@ -153,9 +153,9 @@ function ProductPageClient({ params }: { params: Promise<{ handle: string }> }) 
     )
   }
 
-  const variants = product.variants.edges.map((edge: any) => edge.node)
-  const selectedVariant = variants.find((v: any) => v.id === selectedVariantId) || variants[0]
-  const images = product.images.edges.map((edge: any) => edge.node)
+  const variants = product.variants.edges.map((edge: { node: ShopifyProductVariant }) => edge.node)
+  const selectedVariant = variants.find((v: ShopifyProductVariant) => v.id === selectedVariantId) || variants[0]
+  const images = product.images.edges.map((edge: { node: ShopifyImage }) => edge.node)
 
   const handleAddToCart = async () => {
     if (!selectedVariant) return

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const first = parseInt(searchParams.get('first') || '20');
     const after = searchParams.get('after') || undefined;
     const query = searchParams.get('query') || undefined;
-    const sortKey = searchParams.get('sortKey') as any || 'CREATED_AT';
+    const sortKey = (searchParams.get('sortKey') as 'CREATED_AT' | 'TITLE' | 'PRICE' | 'RELEVANCE') || 'CREATED_AT';
     const reverse = searchParams.get('reverse') === 'true';
 
     const { data, error } = await shopifyClient.query({

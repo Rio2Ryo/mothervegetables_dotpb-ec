@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
     }
 
     let mutation;
-    let variables: any;
+    let variables: { cartId: string; lines: Array<{ merchandiseId: string; quantity: number }> };
 
     if (action === 'add') {
       mutation = ADD_TO_CART;
@@ -118,7 +118,7 @@ export async function PUT(request: NextRequest) {
         }
 
         // 2. 既存のラインIDを取得
-        const existingLineIds = cartData.cart?.lines?.edges?.map((edge: any) => edge.node.id) || [];
+        const existingLineIds = cartData.cart?.lines?.edges?.map((edge: { node: { id: string } }) => edge.node.id) || [];
 
         // 3. 既存のラインを全て削除
         if (existingLineIds.length > 0) {

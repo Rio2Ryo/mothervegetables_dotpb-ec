@@ -226,7 +226,7 @@ export default function AllProductsPage() {
     )
   }
 
-  const products = data?.products?.edges?.map((edge: any) => edge.node) || []
+  const products = data?.products?.edges?.map((edge: { node: ShopifyProduct }) => edge.node) || []
 
   if (products.length === 0) {
     return (
@@ -303,7 +303,7 @@ export default function AllProductsPage() {
 
           {/* 商品グリッド */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {products.map((product: any) => (
+            {products.map((product: ShopifyProduct) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
