@@ -3,14 +3,17 @@
 import { useCart } from '@/contexts/CartContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
 export default function CartIcon() {
   const { state } = useCart()
   const { t } = useLanguage()
+  const params = useParams()
+  const agentCode = params.agentCode as string
 
   return (
     <Link 
-      href="/cart" 
+      href={agentCode ? `/${agentCode}/cart` : "/cart"} 
       className="relative flex items-center justify-center w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors duration-200"
       title={t({ JP: 'ショッピングカート', EN: 'Shopping Cart' })}
     >

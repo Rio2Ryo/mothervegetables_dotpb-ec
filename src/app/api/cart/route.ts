@@ -6,7 +6,7 @@ import { CREATE_CART_DETAILED, ADD_TO_CART, REMOVE_FROM_CART, GET_CART } from '@
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lines } = body;
+    const { lines, countryCode } = body;
 
     if (!lines || !Array.isArray(lines)) {
       return NextResponse.json(
@@ -15,9 +15,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // buyerIdentityに国コードを設定（マーケット選択用）
+    const buyerIdentity = countryCode ? { countryCode } : undefined;
+
+    console.log('Creating cart with market selection:', {
+      countryCode,
+      expectedMarket: countryCode === 'JP' ? '日本' : '国際',
+      expectedCurrency: countryCode === 'JP' ? 'JPY' : 'USD'
+    });
+
     const result = await shopifyClient.mutate({
       mutation: CREATE_CART_DETAILED,
-      variables: { lines },
+      variables: { lines, buyerIdentity },
     });
 
     if (result.errors) {

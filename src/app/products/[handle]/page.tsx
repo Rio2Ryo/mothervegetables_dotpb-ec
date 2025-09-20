@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
 import Toast from '@/components/Toast'
 import { processDescriptionText } from '@/lib/text-utils'
+import { AgentDiscountBadge } from '@/components/agent/AgentDiscountBadge'
 
 interface ProductPageProps {
   params: Promise<{
@@ -266,6 +267,9 @@ function ProductPageClient({ params }: { params: Promise<{ handle: string }> }) 
                     {product.vendor}
                   </p>
                 )}
+                <div className="mt-3">
+                  <AgentDiscountBadge />
+                </div>
               </div>
 
               {/* 商品説明 */}

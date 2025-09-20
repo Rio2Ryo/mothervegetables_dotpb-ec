@@ -1,7 +1,7 @@
 'use client'
 
+import { usePrivyShopifyCart } from '@/contexts/PrivyShopifyCartContext'
 import { useCart } from '@/contexts/CartContext'
-import { useLanguage } from '@/contexts/LanguageContext'
 import CartItemComponent from '@/components/cart/CartItem'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -9,56 +9,42 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export default function CartPage() {
-  const { state, clearCart, formatPrice, createShopifyCart, getCurrentCurrency } = useCart()
-  const { t, language } = useLanguage()
-  const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const { state, privy, cart, language, handleCryptoCheckout, handleCreditCardCheckout } = usePrivyShopifyCart()
+  const { state: cartState } = useCart()
+  const { t } = language
+  const [isProcessing, setIsProcessing] = useState(false)
   
-  const currentCurrency = getCurrentCurrency()
-
-  const handleCheckout = async () => {
-    if (isCheckingOut) return // 重複実行を防止
-    
-    setIsCheckingOut(true)
+  const handleCryptoPayment = async () => {
+    setIsProcessing(true)
     try {
-      // チェックアウト前に確実に同期を完了
-      console.log('🔄 チェックアウト前の同期開始...')
-      
-      // デバウンスを無視して即座に同期を実行
-      const cartData = await createShopifyCart()
-      if (!cartData?.checkoutUrl) {
-        throw new Error('チェックアウトURLの取得に失敗しました')
-      }
-
-      console.log('✅ 同期完了、チェックアウトURL:', cartData.checkoutUrl)
-
-      // 言語パラメータを追加
-      const url = new URL(cartData.checkoutUrl)
-      
-      // Shopify Checkoutの言語設定パラメータを追加
-      if (language === 'EN') {
-        url.searchParams.set('locale', 'en')
-        url.searchParams.set('language', 'en')
-      } else {
-        url.searchParams.set('locale', 'ja')
-        url.searchParams.set('language', 'ja')
-      }
-
-      console.log('🌐 チェックアウトページに遷移:', url.toString())
-
-      // チェックアウトページに遷移
-      window.location.href = url.toString()
+      await handleCryptoCheckout()
     } catch (error) {
-      console.error('チェックアウトエラー:', error)
+      console.error('Crypto payment error:', error)
       alert(t({ 
-        JP: 'チェックアウトに失敗しました。もう一度お試しください。', 
-        EN: 'Checkout failed. Please try again.' 
+        JP: '仮想通貨決済でエラーが発生しました', 
+        EN: 'Error occurred during crypto payment' 
       }))
     } finally {
-      setIsCheckingOut(false)
+      setIsProcessing(false)
     }
   }
 
-  if (state.items.length === 0) {
+  const handleCreditCardPayment = async () => {
+    setIsProcessing(true)
+    try {
+      await handleCreditCardCheckout()
+    } catch (error) {
+      console.error('Credit card payment error:', error)
+      alert(t({ 
+        JP: 'クレジットカード決済でエラーが発生しました', 
+        EN: 'Error occurred during credit card payment' 
+      }))
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  if (cart.state.items.length === 0) {
     return (
       <>
         <Header />
@@ -111,25 +97,38 @@ export default function CartPage() {
               {t({ JP: 'ショッピングカート', EN: 'Shopping Cart' })}
             </h1>
             <p className="text-gray-300">
-              {t({ JP: `${state.totalQuantity}個の商品`, EN: `${state.totalQuantity} items` })}
+              {t({ JP: `${cart.state.totalQuantity}個の商品`, EN: `${cart.state.totalQuantity} items` })}
             </p>
-            <p className="text-sm text-green-400 mt-2">
-              {t({ 
-                JP: `表示通貨: ${currentCurrency.symbol}${currentCurrency.code}`, 
-                EN: `Display Currency: ${currentCurrency.symbol}${currentCurrency.code}` 
-              })}
-            </p>
+            
+            {/* 代理店情報表示 */}
+            {cartState.agentCode && (
+              <div className="mt-4 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p className="text-blue-300 font-medium">
+                      {t({ JP: '代理店経由でのご注文', EN: 'Ordering through agent' })}
+                    </p>
+                    <p className="text-blue-400 text-sm">
+                      {t({ JP: `代理店コード: ${cartState.agentCode}`, EN: `Agent Code: ${cartState.agentCode}` })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* エラー表示 */}
-          {state.error && (
+          {cart.state.error && (
             <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
               <div className="flex items-center">
                 <svg className="w-5 h-5 text-red-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
                 <p className="text-red-400 font-medium">
-                  {state.error}
+                  {cart.state.error}
                 </p>
               </div>
             </div>
@@ -139,7 +138,7 @@ export default function CartPage() {
             {/* カートアイテム一覧 */}
             <div className="lg:col-span-2">
               <div className="space-y-4">
-                {state.items.map((item) => (
+                {cart.state.items.map((item) => (
                   <CartItemComponent key={item.id} item={item} />
                 ))}
               </div>
@@ -147,7 +146,7 @@ export default function CartPage() {
               {/* カートをクリアボタン */}
               <div className="mt-8">
                 <button
-                  onClick={() => clearCart()}
+                  onClick={() => cart.clearCart()}
                   className="text-red-400 hover:text-red-300 text-sm underline"
                 >
                   {t({ JP: 'カートをクリア', EN: 'Clear Cart' })}
@@ -169,7 +168,7 @@ export default function CartPage() {
                       {t({ JP: '小計', EN: 'Subtotal' })}
                     </span>
                     <span className="text-white font-medium">
-                      {formatPrice(state.totalPrice.toString(), state.currencyCode)}
+                      {cart.formatPrice(cart.state.totalPrice.toString(), cart.state.currencyCode)}
                     </span>
                   </div>
 
@@ -188,49 +187,45 @@ export default function CartPage() {
                         {t({ JP: '合計', EN: 'Total' })}
                       </span>
                       <span className="text-lg font-bold text-green-400">
-                        {formatPrice(state.totalPrice.toString(), state.currencyCode)}
+                        {cart.formatPrice(cart.state.totalPrice.toString(), cart.state.currencyCode)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* 決済方法選択 */}
-                <div className="space-y-3 mb-6">
-                  {/* 通常のチェックアウトボタン */}
-                  <button
-                    onClick={handleCheckout}
-                    disabled={state.isLoading || isCheckingOut}
-                    className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-4 px-6 rounded-lg transition-colors duration-200"
-                  >
-                    {state.isLoading || isCheckingOut ? (
-                      <div className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        {isCheckingOut ? t({ JP: '同期中...', EN: 'Syncing...' }) : t({ JP: '処理中...', EN: 'Processing...' })}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center">
-                        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" />
-                        </svg>
-                        {t({ JP: 'クレジットカードで支払う', EN: 'Pay with Credit Card' })}
-                      </div>
+                {/* ユーザー状態表示 */}
+                {state.isPrivyAuthenticated && (
+                  <div className="bg-blue-900 p-4 rounded-lg mb-6">
+                    <h3 className="font-semibold mb-2 text-blue-200">
+                      {t({ JP: 'ウォレット情報', EN: 'Wallet Info' })}
+                    </h3>
+                    <p className="text-sm text-blue-100">
+                      {t({ JP: 'アドレス', EN: 'Address' })}: {state.walletAddress?.slice(0, 6)}...{state.walletAddress?.slice(-4)}
+                    </p>
+                    {state.shopifyCustomerId && (
+                      <p className="text-sm text-blue-100">
+                        {t({ JP: 'カスタマーID', EN: 'Customer ID' })}: {state.shopifyCustomerId.slice(-8)}
+                      </p>
                     )}
-                  </button>
+                  </div>
+                )}
 
-                  {/* 仮想通貨決済ボタン */}
+                {/* 購入ボタン */}
+                <div className="mb-6">
                   <button
-                    onClick={() => console.log('仮想通貨決済を開始')}
-                    disabled={state.isLoading || isCheckingOut}
-                    className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-colors duration-200"
+                    onClick={handleCreditCardPayment}
+                    disabled={isProcessing}
+                    className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-4 px-6 rounded-lg transition-colors duration-200"
                   >
                     <div className="flex items-center justify-center">
                       <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      {t({ JP: '独自コインで支払う', EN: 'Pay with Custom Coin' })}
+                      {isProcessing ? (
+                        t({ JP: '処理中...', EN: 'Processing...' })
+                      ) : (
+                        t({ JP: '購入する', EN: 'Purchase' })
+                      )}
                     </div>
                   </button>
                 </div>

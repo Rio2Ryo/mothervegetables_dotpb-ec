@@ -3,10 +3,18 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { usePrivy } from '@privy-io/react-auth'
+import { useAuthStore } from '@/stores/authStore'
 import CartIcon from '@/components/cart/CartIcon'
+import { Button } from '@/components/ui/button'
+import { useParams } from 'next/navigation'
 
 export default function Header() {
   const { language, setLanguage, t } = useLanguage()
+  const { ready, authenticated, user, login, logout } = usePrivy()
+  const { isAuthenticated, customer, openModal, logout: authLogout } = useAuthStore()
+  const params = useParams()
+  const agentCode = params.agentCode as string
 
   const downloadWhitepaper = () => {
     const link = document.createElement('a')
@@ -23,7 +31,7 @@ export default function Header() {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md border-b border-green-500/20" style={{ zIndex: 1100 }}>
+    <header className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md" style={{ zIndex: 1100 }}>
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
@@ -41,13 +49,13 @@ export default function Header() {
           {/* Navigation Menu */}
           <nav className="flex items-center space-x-1 lg:space-x-2">
             <Link
-              href="/"
+              href={agentCode ? `/${agentCode}` : "/"}
               className="px-3 md:px-4 py-2 text-sm text-gray-300 hover:text-green-400 transition-all duration-300"
             >
               {t({ JP: 'ホーム', EN: 'Home' })}
             </Link>
             <Link
-              href="/products"
+              href={agentCode ? `/${agentCode}/products` : "/products"}
               className="px-3 md:px-4 py-2 text-sm text-gray-300 hover:text-green-400 transition-all duration-300"
             >
               {t({ JP: '商品一覧', EN: 'All Products' })}
@@ -73,12 +81,62 @@ export default function Header() {
               {language === 'EN' ? 'EN' : 'JP'}
             </button>
             <CartIcon />
-            {/*<button
-              onClick={() => window.location.href = 'mailto:info@mothervegetables.com'}
-              className="px-3 md:px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-300"
-            >
-              事前登録
-            </button>*/}
+            
+            {/* 認証ボタン */}
+            <div className="flex items-center space-x-2">
+              {isAuthenticated ? (
+                <div className="flex items-center space-x-2">
+                  <div className="text-xs text-gray-300">
+                    {customer?.firstName} {customer?.lastName}
+                  </div>
+                  <Button
+                    onClick={authLogout}
+                    variant="destructive"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    {t({ JP: 'ログアウト', EN: 'Logout' })}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => openModal('login')}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {t({ JP: 'ログイン', EN: 'Login' })}
+                </Button>
+              )}
+            </div>
+            
+            {/* Privyログインボタン（仮想通貨用） */}
+            {ready && (
+              <div className="flex items-center space-x-2">
+                {authenticated ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="text-xs text-gray-300">
+                      {user?.wallet?.address ? 
+                        `Wallet: ${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}` :
+                        `Email: ${user?.email?.address?.slice(0, 10)}...`
+                      }
+                    </div>
+                    <button
+                      onClick={logout}
+                      className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-300"
+                    >
+                      {t({ JP: 'ウォレット切断', EN: 'Disconnect Wallet' })}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={login}
+                    className="px-3 md:px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-300"
+                  >
+                    {t({ JP: 'ウォレット接続', EN: 'Connect Wallet' })}
+                  </button>
+                )}
+              </div>
+            )}
           </nav>
         </div>
       </div>

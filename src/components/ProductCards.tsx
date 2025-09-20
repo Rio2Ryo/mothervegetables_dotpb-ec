@@ -5,11 +5,12 @@ import { useCart } from '@/contexts/CartContext'
 import { useQuery } from '@apollo/client/react'
 import { GET_PRODUCTS } from '@/lib/shopify-queries'
 import { ShopifyProduct } from '@/types/shopify'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { useState } from 'react'
 import { useToast } from './Toast'
 import Toast from './Toast'
 import { processDescriptionText } from '@/lib/text-utils'
+import { AgentDiscountBadge } from '@/components/agent/AgentDiscountBadge'
 
 interface ProductCardProps {
   product: ShopifyProduct
@@ -19,6 +20,8 @@ function ProductCard({ product }: ProductCardProps) {
   const { t } = useLanguage()
   const { addItem, formatPrice } = useCart()
   const router = useRouter()
+  const params = useParams()
+  const agentCode = params.agentCode as string
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const { showCartSuccess } = useToast()
   
@@ -28,7 +31,12 @@ function ProductCard({ product }: ProductCardProps) {
   const handleViewDetails = () => {
     console.log('🔍 Product handle:', product.handle)
     console.log('🔍 Product title:', product.title)
-    router.push(`/products/${product.handle}`)
+    // 代理店ページの場合は代理店経由のリンクを使用
+    if (agentCode) {
+      router.push(`/${agentCode}/products/${product.handle}`)
+    } else {
+      router.push(`/products/${product.handle}`)
+    }
   }
 
   const handleAddToCart = async () => {
@@ -72,6 +80,12 @@ function ProductCard({ product }: ProductCardProps) {
         {firstVariant && (
           <div className="absolute top-3 right-3 bg-green-500 text-black px-3 py-1 rounded-full text-sm font-bold">
             {formatPrice(firstVariant.price.amount, firstVariant.price.currencyCode)}
+          </div>
+        )}
+        {/* 代理店割引バッジ */}
+        {agentCode && (
+          <div className="absolute top-3 left-3">
+            <AgentDiscountBadge />
           </div>
         )}
       </div>

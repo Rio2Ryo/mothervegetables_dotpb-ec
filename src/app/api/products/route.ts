@@ -4,6 +4,14 @@ import { GET_PRODUCTS } from '@/lib/shopify-queries';
 
 export async function GET(request: NextRequest) {
   try {
+    // 環境変数のチェック
+    if (!process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN || !process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN) {
+      console.error('Missing Shopify environment variables');
+      return NextResponse.json(
+        { error: 'Shopify configuration is missing' },
+        { status: 500 }
+      );
+    }
     const { searchParams } = new URL(request.url);
     const first = parseInt(searchParams.get('first') || '20');
     const after = searchParams.get('after') || undefined;

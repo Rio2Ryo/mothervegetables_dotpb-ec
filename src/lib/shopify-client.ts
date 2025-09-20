@@ -6,9 +6,16 @@ const SHOPIFY_STOREFRONT_URL = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN
   ? `https://${process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.json`
   : '';
 
+// 環境変数のチェック
+if (!process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN || !process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN) {
+  console.error('Missing required Shopify environment variables');
+  console.error('NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN:', !!process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN);
+  console.error('NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN:', !!process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN);
+}
+
 // HTTP link for GraphQL requests
 const httpLink = createHttpLink({
-  uri: SHOPIFY_STOREFRONT_URL,
+  uri: SHOPIFY_STOREFRONT_URL || 'https://placeholder.myshopify.com/api/2024-01/graphql.json',
 });
 
 // Auth link to add Storefront Access Token

@@ -32,6 +32,7 @@ interface CartState {
   error: string | null
   shopifyCartId: string | null
   checkoutUrl: string | null
+  agentCode: string | null // 代理店コードを追加
 }
 
 // カートアクションの型定義
@@ -45,6 +46,7 @@ type CartAction =
   | { type: 'LOAD_CART'; payload: CartItem[] }
   | { type: 'SET_SHOPIFY_CART'; payload: { cartId: string; checkoutUrl: string } }
   | { type: 'SYNC_SHOPIFY_CART'; payload: { cartId: string; checkoutUrl: string; items: CartItem[] } }
+  | { type: 'SET_AGENT_CODE'; payload: string | null }
 
 // 初期状態
 const initialState: CartState = {
@@ -56,6 +58,7 @@ const initialState: CartState = {
   error: null,
   shopifyCartId: null,
   checkoutUrl: null,
+  agentCode: null,
 }
 
 // カートリデューサー
@@ -183,6 +186,12 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       }
     }
     
+    case 'SET_AGENT_CODE':
+      return {
+        ...state,
+        agentCode: action.payload,
+      }
+    
     default:
       return state
   }
@@ -199,6 +208,7 @@ interface CartContextType {
   syncWithShopify: () => Promise<void>
   createShopifyCart: () => Promise<{ id: string; checkoutUrl: string; lines?: unknown } | undefined>
   getCurrentCurrency: () => { code: string; locale: string; symbol: string }
+  setAgentCode: (agentCode: string | null) => void
 }
 
 // コンテキスト作成
@@ -500,10 +510,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } else {
         // 新しいカートを作成
         console.log('🆕 新しいShopifyカートを作成中...')
+        // LanguageContextから国コードを取得して渡す
+        // Note: CartContextはLanguageContextにアクセスできないので、
+        // countryCodeはlocalStorageまたはwindowから取得する必要がある
+        const storedLanguage = typeof window !== 'undefined' ? localStorage.getItem('language') : null;
+        const countryCode = storedLanguage === 'JP' ? 'JP' : 'SG';
+
         response = await fetch('/api/cart', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lines })
+          body: JSON.stringify({ lines, countryCode })
         })
       }
 
@@ -555,6 +571,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return CURRENCY_CONFIG[language as keyof typeof CURRENCY_CONFIG] || CURRENCY_CONFIG.JP
   }
 
+  // 代理店コードを設定
+  const setAgentCode = (agentCode: string | null) => {
+    dispatch({ type: 'SET_AGENT_CODE', payload: agentCode })
+  }
+
   const value: CartContextType = {
     state,
     addItem,
@@ -565,6 +586,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     syncWithShopify,
     createShopifyCart,
     getCurrentCurrency,
+    setAgentCode,
   }
 
   return (

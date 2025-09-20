@@ -545,8 +545,8 @@ export const GET_CART = gql`
 
 // カート作成（詳細版）
 export const CREATE_CART_DETAILED = gql`
-  mutation CreateCart($lines: [CartLineInput!]!) {
-    cartCreate(input: { lines: $lines }) {
+  mutation CreateCart($lines: [CartLineInput!]!, $buyerIdentity: CartBuyerIdentityInput) {
+    cartCreate(input: { lines: $lines, buyerIdentity: $buyerIdentity }) {
       cart {
         id
         lines(first: 100) {

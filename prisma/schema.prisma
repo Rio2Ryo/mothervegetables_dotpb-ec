@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserLink {
+  id                String   @id @default(cuid())
+  privyUserId       String   @unique
+  shopifyCustomerId String   @unique
+  email             String
+  walletAddress     String?
+  linkedAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  orders            Order[]
+  
+  @@map("user_links")
+}
+
+model Order {
+  id                String   @id @default(cuid())
+  userLinkId        String?
+  userLink          UserLink? @relation(fields: [userLinkId], references: [id])
+  
+  // Shopify関連
+  shopifyOrderId    String?
+  shopifyCartId     String?
+  
+  // カート情報
+  items             Json
+  totalAmount       Decimal
+  currency          String
+  paymentMethod     String
+  status            OrderStatus
+  
+  // 仮想通貨関連
+  cryptoAddress     String?
+  cryptoAmount      Decimal?
+  transactionHash   String?
+  
+  // タイムスタンプ
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  cryptoTransactions CryptoTransaction[]
+  
+  @@map("orders")
+}
+
+model CryptoTransaction {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id])
+  transactionHash   String   @unique
+  fromAddress       String
+  toAddress         String
+  amount            Decimal
+  blockNumber       BigInt?
+  confirmationCount Int      @default(0)
+  status            TransactionStatus @default(PENDING)
+  createdAt         DateTime @default(now())
+  
+  @@map("crypto_transactions")
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_RECEIVED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
