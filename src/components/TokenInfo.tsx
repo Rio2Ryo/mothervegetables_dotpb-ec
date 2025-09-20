@@ -4,14 +4,6 @@ import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function TokenInfo() {
   const { t } = useLanguage()
-  const downloadWhitepaper = () => {
-    const link = document.createElement('a')
-    link.href = '/0912_whitepaper_ja.pdf'
-    link.download = 'MOTHER_VEGETABLES_Whitepaper_JP.pdf'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   return (
     <section id="token" className="py-32 bg-gradient-to-b from-gray-900 to-black">

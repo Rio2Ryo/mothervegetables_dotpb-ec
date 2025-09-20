@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback } from 'react'
-import { ShopifyProduct, ShopifyCart } from '@/types/shopify'
+import { ShopifyProduct } from '@/types/shopify'
 import { useLanguage } from './LanguageContext'
 import { CURRENCY_CONFIG, convertCurrency } from '@/lib/currency'
 

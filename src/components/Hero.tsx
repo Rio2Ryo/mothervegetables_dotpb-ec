@@ -5,28 +5,6 @@ import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function Hero() {
   const { t } = useLanguage()
-  const scrollToDetails = () => {
-    const element = document.getElementById('project-overview')
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
-
-  const scrollToToken = () => {
-    const element = document.getElementById('token')
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
-
-  const downloadWhitepaper = () => {
-    const link = document.createElement('a')
-    link.href = '/0912_whitepaper_ja.pdf'
-    link.download = 'MOTHER_VEGETABLES_Whitepaper_JP.pdf'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">

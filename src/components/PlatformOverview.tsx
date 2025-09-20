@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { FaGlobe, FaClock, FaSolarPanel, FaShield, FaChartLine, FaHandshake, FaRocket } from 'react-icons/fa6'
 
 export default function PlatformOverview() {

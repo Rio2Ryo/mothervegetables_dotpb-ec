@@ -1,21 +1,13 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import CartIcon from '@/components/cart/CartIcon'
 
 export default function Header() {
-  const [activeSection, setActiveSection] = useState('')
   const { language, setLanguage, t } = useLanguage()
-
-  const scrollToSection = (sectionId: string) => {
-    setActiveSection(sectionId)
-    const element = document.getElementById(sectionId)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
 
   const downloadWhitepaper = () => {
     const link = document.createElement('a')
@@ -37,30 +29,30 @@ export default function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <a href="/" className="hover:opacity-80 transition-opacity">
+            <Link href="/" className="hover:opacity-80 transition-opacity">
               <Image
                 src="/logo-uCgt3dQl.png"
                 alt="MOTHER VEGETABLES"
                 width={100}
                 height={100}
               />
-            </a>
+            </Link>
           </div>
 
           {/* Navigation Menu */}
           <nav className="flex items-center space-x-1 lg:space-x-2">
-            <a
+            <Link
               href="/"
               className="px-3 md:px-4 py-2 text-sm text-gray-300 hover:text-green-400 transition-all duration-300"
             >
               {t({ JP: 'ホーム', EN: 'Home' })}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/products"
               className="px-3 md:px-4 py-2 text-sm text-gray-300 hover:text-green-400 transition-all duration-300"
             >
               {t({ JP: '商品一覧', EN: 'All Products' })}
-            </a>
+            </Link>
             <a
               href="https://dotpb.jp"
               target="_blank"

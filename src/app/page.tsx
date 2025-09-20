@@ -9,7 +9,6 @@ import IndustryApproach from '@/components/IndustryApproach'
 import TeamMembers from '@/components/TeamMembers'
 import Partners from '@/components/Partners'
 import TokenInfo from '@/components/TokenInfo'
-import FAQ from '@/components/FAQ'
 import Footer from '@/components/Footer'
 import LoadingScreen from '@/components/LoadingScreen'
 

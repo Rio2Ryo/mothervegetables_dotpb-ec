@@ -1,5 +1,5 @@
 import { gql } from '@apollo/client';
-import { ProductsQueryResponse, ProductQueryResponse, CollectionsQueryResponse } from '@/types/shopify';
+// Types are imported as needed
 
 // 商品詳細取得クエリ
 export const GET_PRODUCT_BY_HANDLE = gql`
