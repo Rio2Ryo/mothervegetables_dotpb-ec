@@ -83,3 +83,30 @@ enum TransactionStatus {
   CONFIRMED
   FAILED
 }
+
+model CryptoPayment {
+  id                String   @id @default(cuid())
+  orderId           String
+  address           String   @unique
+  derivationPath    String
+  amount            String
+  currency          String
+  status            PaymentStatus @default(PENDING)
+  transactionHash   String?
+  fromAddress       String?
+  blockNumber       String?
+  confirmedAt       DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("crypto_payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  INSUFFICIENT
+  EXPIRED
+  CANCELLED
+}

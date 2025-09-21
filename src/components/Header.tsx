@@ -3,18 +3,24 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/LanguageContext'
-import { usePrivy } from '@privy-io/react-auth'
+import { useMetaMaskAuth } from '@/contexts/MetaMaskAuthContext'
 import { useAuthStore } from '@/stores/authStore'
 import CartIcon from '@/components/cart/CartIcon'
 import { Button } from '@/components/ui/button'
 import { useParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export default function Header() {
   const { language, setLanguage, t } = useLanguage()
-  const { ready, authenticated, user, login, logout } = usePrivy()
+  const { address, isConnected, isConnecting, connect, disconnect } = useMetaMaskAuth()
   const { isAuthenticated, customer, openModal, logout: authLogout } = useAuthStore()
   const params = useParams()
   const agentCode = params.agentCode as string
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const downloadWhitepaper = () => {
     const link = document.createElement('a')
@@ -109,30 +115,32 @@ export default function Header() {
               )}
             </div>
             
-            {/* Privyログインボタン（仮想通貨用） */}
-            {ready && (
+            {/* MetaMaskログインボタン（仮想通貨用） */}
+            {isMounted && (
               <div className="flex items-center space-x-2">
-                {authenticated ? (
-                  <div className="flex items-center space-x-2">
+                {isConnected && address ? (
+                  <>
                     <div className="text-xs text-gray-300">
-                      {user?.wallet?.address ? 
-                        `Wallet: ${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}` :
-                        `Email: ${user?.email?.address?.slice(0, 10)}...`
-                      }
+                      {`Wallet: ${address.slice(0, 6)}...${address.slice(-4)}`}
                     </div>
                     <button
-                      onClick={logout}
+                      onClick={disconnect}
                       className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-300"
+                      disabled={isConnecting}
                     >
                       {t({ JP: 'ウォレット切断', EN: 'Disconnect Wallet' })}
                     </button>
-                  </div>
+                  </>
                 ) : (
                   <button
-                    onClick={login}
-                    className="px-3 md:px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-300"
+                    onClick={connect}
+                    className="px-3 md:px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-300 disabled:opacity-50"
+                    disabled={isConnecting}
                   >
-                    {t({ JP: 'ウォレット接続', EN: 'Connect Wallet' })}
+                    {isConnecting
+                      ? t({ JP: '接続中...', EN: 'Connecting...' })
+                      : t({ JP: 'MetaMask接続', EN: 'Connect MetaMask' })
+                    }
                   </button>
                 )}
               </div>

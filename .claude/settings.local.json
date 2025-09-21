@@ -17,7 +17,13 @@
       "Bash(git remote remove:*)",
       "Bash(git config:*)",
       "Bash(ssh:*)",
-      "Read(//c/Users/team4/.ssh/**)"
+      "Read(//c/Users/team4/.ssh/**)",
+      "Bash(git remote set-url:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

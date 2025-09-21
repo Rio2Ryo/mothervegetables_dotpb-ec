@@ -1,6 +1,6 @@
 'use client'
 
-import { usePrivyShopifyCart } from '@/contexts/PrivyShopifyCartContext'
+import { useMetaMaskShopifyCart } from '@/contexts/MetaMaskShopifyCartContext'
 import { useCart } from '@/contexts/CartContext'
 import CartItemComponent from '@/components/cart/CartItem'
 import Header from '@/components/Header'
@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export default function CartPage() {
-  const { state, privy, cart, language, handleCryptoCheckout, handleCreditCardCheckout } = usePrivyShopifyCart()
+  const { state, cart, language, handleCryptoCheckout, handleCreditCardCheckout } = useMetaMaskShopifyCart()
   const { state: cartState } = useCart()
   const { t } = language
   const [isProcessing, setIsProcessing] = useState(false)
@@ -194,7 +194,7 @@ export default function CartPage() {
                 </div>
 
                 {/* ユーザー状態表示 */}
-                {state.isPrivyAuthenticated && (
+                {state.isWalletConnected && (
                   <div className="bg-blue-900 p-4 rounded-lg mb-6">
                     <h3 className="font-semibold mb-2 text-blue-200">
                       {t({ JP: 'ウォレット情報', EN: 'Wallet Info' })}
@@ -211,7 +211,7 @@ export default function CartPage() {
                 )}
 
                 {/* 購入ボタン */}
-                <div className="mb-6">
+                <div className="mb-4">
                   <button
                     onClick={handleCreditCardPayment}
                     disabled={isProcessing}
@@ -224,7 +224,27 @@ export default function CartPage() {
                       {isProcessing ? (
                         t({ JP: '処理中...', EN: 'Processing...' })
                       ) : (
-                        t({ JP: '購入する', EN: 'Purchase' })
+                        t({ JP: 'クレジットカードで購入', EN: 'Pay with Card' })
+                      )}
+                    </div>
+                  </button>
+                </div>
+
+                {/* 仮想通貨決済ボタン */}
+                <div className="mb-6">
+                  <button
+                    onClick={handleCryptoPayment}
+                    disabled={isProcessing}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-colors duration-200"
+                  >
+                    <div className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
+                      </svg>
+                      {isProcessing ? (
+                        t({ JP: '処理中...', EN: 'Processing...' })
+                      ) : (
+                        t({ JP: 'MetaMaskで支払う', EN: 'Pay with MetaMask' })
                       )}
                     </div>
                   </button>
