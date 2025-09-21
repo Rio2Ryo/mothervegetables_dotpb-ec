@@ -111,31 +111,36 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
         const result = await response.json()
         console.log('📊 監視結果:', result)
 
-            if (result.success) {
-              setPaymentStatus(result.data)
-              
-              if (result.data.isPaid) {
-                console.log('✅ 支払い完了！')
-                setIsMonitoring(false)
-                clearInterval(interval)
-                setMonitoringInterval(null)
-                
-                // 自動移行の状況を表示
-                setTransferStatus({
-                  isTransferring: true,
-                  isTransferred: false
-                })
-                
-                // 自動移行の完了を待つ（5秒後）
-                setTimeout(() => {
-                  setTransferStatus({
-                    isTransferring: false,
-                    isTransferred: true,
-                    transactionHash: result.data.transactionHash
-                  })
-                }, 5000)
-              }
-            }
+        if (result.success) {
+          console.log('📊 支払い状況更新:', result.data)
+          setPaymentStatus(result.data)
+          
+          if (result.data.isPaid) {
+            console.log('✅ 支払い完了！')
+            setIsMonitoring(false)
+            clearInterval(interval)
+            setMonitoringInterval(null)
+            
+            // 自動移行の状況を表示
+            setTransferStatus({
+              isTransferring: true,
+              isTransferred: false
+            })
+            
+            // 自動移行の完了を待つ（5秒後）
+            setTimeout(() => {
+              setTransferStatus({
+                isTransferring: false,
+                isTransferred: true,
+                transactionHash: result.data.transactionHash
+              })
+            }, 5000)
+          } else {
+            console.log('⏳ 支払い待機中...')
+          }
+        } else {
+          console.warn('⚠️ 監視結果が失敗:', result)
+        }
       } catch (err) {
         console.error('❌ 監視エラー:', err)
       }
@@ -272,7 +277,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
     if (isOpen) {
       fetchWalletInfo()
     }
-  }, [isOpen])
+  }, [isOpen]) // fetchWalletInfo is stable as it doesn't use any props/state
 
   if (!isOpen) return null
 

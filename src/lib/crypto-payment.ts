@@ -1,6 +1,17 @@
 import { ethers } from 'ethers'
 import { MASTER_WALLET_CONFIG, CHILD_WALLET_CONFIG } from './alchemy'
 
+// 子ウォレット秘密鍵の保存用Map（メモリ内）
+const childWalletKeys = new Map<string, string>()
+
+// プロバイダーを取得する共通関数
+function getProvider() {
+  return new ethers.JsonRpcProvider(process.env.ALCHEMY_API_KEY ?
+    `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}` :
+    'https://sepolia.infura.io/v3/YOUR_INFURA_KEY'
+  )
+}
+
 // 注文情報の型定義
 export interface OrderInfo {
   orderId: string
@@ -61,7 +72,11 @@ export async function generateChildWallet(orderId: string): Promise<ChildWallet>
     
     // 子ウォレットの生成
     const childWallet = new ethers.Wallet(seed)
-
+    
+    // 秘密鍵を保存（自動送金用）
+    childWalletKeys.set(orderId, childWallet.privateKey)
+    console.log(`🔑 子ウォレット秘密鍵を保存: ${orderId} -> ${childWallet.address}`)
+    
     return {
       address: childWallet.address,
       privateKey: childWallet.privateKey,
@@ -146,7 +161,25 @@ export async function monitorPayment(
     const isPaid = balanceInWei >= expectedAmountInWei
 
     if (isPaid) {
-      // 基本的な支払い情報を返す（トランザクション詳細は後で実装）
+      console.log(`💰 支払い検知: ${walletAddress} に ${currentBalance} ETH が入金されました`)
+      
+      // 自動送金を実行
+      try {
+        const transferResult = await transferToMasterWallet(orderId, currentBalance)
+        if (transferResult.success) {
+          console.log(`✅ 自動送金完了: ${transferResult.transactionHash}`)
+        } else {
+          console.warn(`⚠️ 自動送金失敗: ${transferResult.error}`)
+        }
+      } catch (error) {
+        console.error('❌ 自動送金エラー:', error)
+      }
+      
+      // 実際のトランザクション情報を取得（将来実装予定）
+      console.log(`📋 支払い検知: 実際のトランザクション情報を取得中...`)
+      
+      // フォールバック: 基本的な支払い情報を返す
+      console.log(`📋 フォールバック: 基本的な支払い情報を返します`)
       return {
         orderId,
         walletAddress,
@@ -211,12 +244,154 @@ export function isValidAddress(address: string): boolean {
 }
 
 /**
+ * 子ウォレットからマスターウォレットへの自動送金
+ */
+export async function transferToMasterWallet(
+  orderId: string,
+  amount: string
+): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
+  try {
+    console.log(`💰 支払い検知: マスターウォレットへの自動移動を開始`)
+    console.log(`マスターウォレット: ${MASTER_WALLET_CONFIG.address}`)
+    console.log(`移動金額: ${amount}`)
+    
+    // 子ウォレットの秘密鍵を取得
+    console.log(`🔍 秘密鍵検索: orderId=${orderId}`)
+    console.log(`🔍 保存済み秘密鍵数: ${childWalletKeys.size}`)
+    console.log(`🔍 保存済みorderId: ${Array.from(childWalletKeys.keys())}`)
+    
+    const childPrivateKey = childWalletKeys.get(orderId)
+    if (!childPrivateKey) {
+      console.warn(`⚠️ 子ウォレットの秘密鍵が見つかりません: ${orderId}`)
+      
+      // フォールバック: 子ウォレットを再生成
+      try {
+        console.log(`🔄 子ウォレットを再生成中...`)
+        const childWallet = await generateChildWallet(orderId)
+        childWalletKeys.set(orderId, childWallet.privateKey)
+        console.log(`✅ 子ウォレット再生成完了: ${childWallet.address}`)
+        
+        // 再生成した秘密鍵を使用
+        const newChildWallet = new ethers.Wallet(childWallet.privateKey)
+        
+        // プロバイダーを設定
+        const provider = getProvider()
+        const connectedNewChildWallet = newChildWallet.connect(provider)
+        
+        return await executeTransfer(connectedNewChildWallet, amount)
+      } catch (error) {
+        console.error('❌ 子ウォレット再生成エラー:', error)
+        return { success: false, error: 'Failed to regenerate child wallet' }
+      }
+    }
+    
+    // 子ウォレットのウォレットオブジェクトを作成
+    const childWallet = new ethers.Wallet(childPrivateKey)
+    
+    // プロバイダーを設定
+    const provider = getProvider()
+    const connectedChildWallet = childWallet.connect(provider)
+    
+    return await executeTransfer(connectedChildWallet, amount)
+    
+  } catch (error) {
+    console.error('❌ 自動送金エラー:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }
+  }
+}
+
+/**
+ * 送金実行の共通処理
+ */
+async function executeTransfer(
+  childWallet: ethers.Wallet,
+  amount: string
+): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
+  try {
+    // マスターウォレットのアドレスを取得
+    const masterWallet = new ethers.Wallet(MASTER_WALLET_CONFIG.privateKey)
+    const masterAddress = masterWallet.address
+    
+    // ガス価格を取得
+    const provider = getProvider()
+    
+    const feeData = await provider.getFeeData()
+    const gasPrice = feeData.gasPrice || ethers.parseUnits('20', 'gwei') // デフォルト20 gwei
+    const gasLimit = 21000 // ETH送金の標準ガス制限
+    
+    // ガス代を計算
+    const gasCost = gasPrice * BigInt(gasLimit)
+    let amountWei = ethers.parseEther(amount)
+    const totalCost = amountWei + gasCost
+    
+    // 残高を確認
+    const balance = await provider.getBalance(childWallet.address)
+    console.log(`💰 残高確認: ${ethers.formatEther(balance)} ETH`)
+    console.log(`💰 送金金額: ${ethers.formatEther(amountWei)} ETH`)
+    console.log(`💰 ガス代: ${ethers.formatEther(gasCost)} ETH`)
+    console.log(`💰 必要金額: ${ethers.formatEther(totalCost)} ETH`)
+    
+    if (balance < totalCost) {
+      console.warn(`⚠️ 残高不足: ${ethers.formatEther(balance)} < ${ethers.formatEther(totalCost)}`)
+      
+      // ガス代を差し引いた送金金額を計算
+      const availableAmount = balance - gasCost
+      if (availableAmount <= 0) {
+        return { success: false, error: 'Insufficient balance for gas fees' }
+      }
+      
+      console.log(`🔄 送金金額を調整: ${ethers.formatEther(amountWei)} → ${ethers.formatEther(availableAmount)}`)
+      amountWei = availableAmount
+    }
+    
+    // 送金トランザクションを作成
+    const tx = {
+      to: masterAddress,
+      value: amountWei,
+      gasLimit: gasLimit,
+      gasPrice: gasPrice
+    }
+    
+    console.log(`📤 送金トランザクション準備:`)
+    console.log(`  送金先: ${masterAddress}`)
+    console.log(`  送金金額: ${ethers.formatEther(amountWei)} ETH`)
+    console.log(`  ガス制限: ${gasLimit}`)
+    console.log(`  ガス価格: ${ethers.formatUnits(gasPrice, 'gwei')} gwei`)
+    
+    // トランザクションを送信
+    const txResponse = await childWallet.sendTransaction(tx)
+    console.log(`📤 送金トランザクション送信: ${txResponse.hash}`)
+    
+    // トランザクションの完了を待つ
+    const receipt = await txResponse.wait()
+    if (!receipt) {
+      throw new Error('Transaction receipt is null')
+    }
+    console.log(`✅ 送金完了: ${receipt.hash}`)
+    
+    return { 
+      success: true, 
+      transactionHash: receipt.hash 
+    }
+  } catch (error) {
+    console.error('❌ 送金実行エラー:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }
+  }
+}
+
+/**
  * ETHの金額をフォーマット
  */
 export function formatEthAmount(amount: string): string {
   try {
     return ethers.formatEther(amount)
-  } catch (error) {
+  } catch {
     return '0.0'
   }
 }

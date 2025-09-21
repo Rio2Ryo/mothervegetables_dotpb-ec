@@ -373,19 +373,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // デバウンスされた同期処理
-  const debouncedSyncWithShopify = useCallback(() => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current)
-    }
-    
-    syncTimeoutRef.current = setTimeout(() => {
-      syncWithShopify()
-    }, 500) // 500ms後に実行
-  }, [])
-
   // Shopifyカートと同期（リトライ機能付き）
-  const syncWithShopify = async (retryCount = 0) => {
+  const syncWithShopify = useCallback(async (retryCount = 0) => {
     const maxRetries = 3
     
     // 既に同期中の場合はスキップ
@@ -482,7 +471,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_ERROR', payload: 'Shopifyカートの同期に失敗しました（最大リトライ回数に達しました）' })
       }
     }
-  }
+  }, [state.isLoading, state.items, state.shopifyCartId, dispatch])
 
   // Shopifyカートを作成または更新（チェックアウト用）
   const createShopifyCart = async () => {
@@ -552,6 +541,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       throw error
     }
   }
+
+  // デバウンスされた同期処理
+  const debouncedSyncWithShopify = useCallback(() => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current)
+    }
+    
+    syncTimeoutRef.current = setTimeout(() => {
+      syncWithShopify()
+    }, 500) // 500ms後に実行
+  }, [syncWithShopify])
 
   // 通貨変換関数は @/lib/currency からインポート
 

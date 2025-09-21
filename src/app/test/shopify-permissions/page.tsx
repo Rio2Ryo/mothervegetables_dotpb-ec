@@ -6,8 +6,8 @@ interface ShopifyPermissionsResult {
   success: boolean;
   message?: string;
   error?: string;
-  details?: any;
-  data?: any;
+  details?: unknown;
+  data?: unknown;
 }
 
 export default function ShopifyPermissionsTestPage() {
@@ -102,6 +102,7 @@ export default function ShopifyPermissionsTestPage() {
     </div>
   )
 }
+
 
 
 

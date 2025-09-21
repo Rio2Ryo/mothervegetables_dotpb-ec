@@ -1,14 +1,14 @@
 import { shopifyStorefront } from './storefront-client';
-import { useAgentStore } from '@/stores/agentStore';
+// import { useAgentStore } from '@/stores/agentStore';
 
 // カート作成時に代理店情報をメタデータに追加（新しいCart APIを使用）
 export async function createCheckoutWithAgentMetadata(
-  lineItems: any[],
+  lineItems: Array<{ merchandiseId: string; quantity: number; variantId?: string }>,
   agentCode?: string,
   discountCode?: string,
   customerAccessToken?: string,
   countryCode?: string,
-  currencyCode?: string
+  // currencyCode?: string
 ) {
   try {
     // Step 1: カートを作成
@@ -66,7 +66,7 @@ export async function createCheckoutWithAgentMetadata(
 
     // カートアイテムを新しい形式に変換
     const cartLines = lineItems.map(item => ({
-      merchandiseId: item.variantId,
+      merchandiseId: item.variantId || item.merchandiseId,
       quantity: item.quantity
     }));
 
@@ -87,7 +87,7 @@ export async function createCheckoutWithAgentMetadata(
     const discountCodes = discountCode ? [discountCode] : undefined;
 
     // buyerIdentityに国コード、配送先設定を追加
-    const buyerIdentity: any = {};
+    const buyerIdentity: { customerAccessToken?: string; countryCode?: string } = {};
     if (customerAccessToken) {
       buyerIdentity.customerAccessToken = customerAccessToken;
     }
@@ -137,7 +137,7 @@ export async function createCheckoutWithAgentMetadata(
 
     // Step 2: 割引コードが適用されているか確認
     if (discountCode && result.cart.discountCodes) {
-      const appliedDiscount = result.cart.discountCodes.find((dc: any) => dc.code === discountCode);
+      const appliedDiscount = result.cart.discountCodes.find((dc: { code: string }) => dc.code === discountCode);
       if (appliedDiscount && !appliedDiscount.applicable) {
         console.warn(`Discount code ${discountCode} was not applicable`);
       }
@@ -277,6 +277,7 @@ export async function saveAgentMetadataToOrder(
     throw error;
   }
 }
+
 
 
 

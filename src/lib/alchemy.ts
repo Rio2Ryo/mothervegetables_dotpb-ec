@@ -32,7 +32,7 @@ export const NETWORK_CONFIG = {
 // マスターウォレットの設定（テスト用）
 export const MASTER_WALLET_CONFIG = {
   privateKey: process.env.MASTER_WALLET_PRIVATE_KEY || '',
-  address: '', // 後で設定
+  address: process.env.MASTER_WALLET_ADDRESS || '0xD159CaB9786a5E4D955354C3E067b297c453eD35', // テスト用アドレス
 }
 
 // 子ウォレット生成用の設定

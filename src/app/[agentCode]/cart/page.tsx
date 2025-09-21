@@ -60,7 +60,7 @@ export default function AgentCartPage() {
         agentCode: agentCode,
         items: cartState.items.map(item => ({
           id: item.id,
-          name: item.name,
+          name: item.title,
           quantity: item.quantity,
           price: "0.001" // テスト用に0.001 ETHに設定
         }))

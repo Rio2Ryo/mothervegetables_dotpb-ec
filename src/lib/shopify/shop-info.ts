@@ -48,7 +48,7 @@ export async function getShopInfo() {
 }
 
 // ショップ情報をキャッシュ付きで取得
-let cachedShopInfo: any = null;
+let cachedShopInfo: { name: string; domain: string; currency: string } | null = null;
 let cacheExpiry = 0;
 
 export async function getCachedShopInfo() {

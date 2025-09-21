@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     const payment = await prisma.cryptoPayment.findFirst({
-      where: orderId ? { orderId } : { id: paymentId },
+      where: orderId ? { orderId } : paymentId ? { id: paymentId } : undefined,
     })
 
     if (!payment) {

@@ -89,13 +89,6 @@ export const useAgentStore = create<AgentState>()(
         // 代理店ページでない場合は何もしない（既存のコードを保持）
       },
 
-      clearAgent: () => {
-        console.log('[AgentStore] Clearing agent');
-        set({ 
-          currentAgentCode: null, 
-          isDetected: false 
-        });
-      },
 
       // 割引関連のアクション
       setCouponCode: (code: string | null) => {

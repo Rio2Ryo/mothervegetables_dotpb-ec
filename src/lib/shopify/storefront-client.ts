@@ -24,7 +24,7 @@ class ShopifyStorefrontClient {
     }
   }
 
-  async request(query: string, variables: any = {}) {
+  async request(query: string, variables: Record<string, unknown> = {}) {
     try {
       console.log('Shopify Storefront API Request:', {
         endpoint: this.endpoint,
@@ -57,7 +57,7 @@ class ShopifyStorefrontClient {
 
       if (data.errors) {
         console.error('GraphQL errors:', data.errors);
-        const errorMessage = data.errors.map((e: any) => e.message).join(', ');
+        const errorMessage = data.errors.map((e: { message: string }) => e.message).join(', ');
         throw new Error(`GraphQL errors: ${errorMessage}`);
       }
 

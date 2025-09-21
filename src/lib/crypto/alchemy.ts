@@ -1,4 +1,4 @@
-import { Alchemy, Network, AlchemySubscription } from 'alchemy-sdk'
+import { Alchemy, Network, AlchemySubscription, AssetTransfersCategory } from 'alchemy-sdk'
 
 export class AlchemyService {
   private alchemy: Alchemy
@@ -20,7 +20,13 @@ export class AlchemyService {
     const transfers = await this.alchemy.core.getAssetTransfers({
       fromBlock: '0x0',
       toAddress: address,
-      category: ['external', 'internal', 'erc20', 'erc721', 'erc1155'],
+      category: [
+        AssetTransfersCategory.EXTERNAL,
+        AssetTransfersCategory.INTERNAL,
+        AssetTransfersCategory.ERC20,
+        AssetTransfersCategory.ERC721,
+        AssetTransfersCategory.ERC1155
+      ],
     })
     return transfers.transfers
   }
@@ -32,7 +38,7 @@ export class AlchemyService {
 
   async subscribeToAddress(
     address: string,
-    callback: (txn: any) => void
+    callback: (txn: unknown) => void
   ): Promise<void> {
     this.alchemy.ws.on(
       {

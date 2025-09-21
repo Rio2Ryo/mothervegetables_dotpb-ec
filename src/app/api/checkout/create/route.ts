@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 代理店情報、クーポンコード、ユーザー情報、国コード、通貨コードを含めてチェックアウトを作成
-    const result = await createCheckoutWithAgentMetadata(lineItems, agentCode, discountCode, customerAccessToken, countryCode, currencyCode);
+    const result = await createCheckoutWithAgentMetadata(lineItems, agentCode, discountCode, customerAccessToken, countryCode);
 
     if (!result.success || !result.checkout) {
       return NextResponse.json(
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 
 
 
