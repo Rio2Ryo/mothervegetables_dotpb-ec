@@ -19,7 +19,7 @@ const MetaMaskAuthContext = createContext<MetaMaskAuthContextType | undefined>(u
 export function MetaMaskAuthProvider({ children }: { children: React.ReactNode }) {
   const { address, isConnected } = useAccount()
   const { connectAsync } = useConnect()
-  const { disconnectAsync } = useDisconnect()
+  const { disconnect } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -42,15 +42,15 @@ export function MetaMaskAuthProvider({ children }: { children: React.ReactNode }
     }
   }, [connectAsync])
 
-  const disconnect = useCallback(async () => {
+  const handleDisconnect = useCallback(async () => {
     try {
-      await disconnectAsync()
+      disconnect()
       console.log('Disconnected from MetaMask')
     } catch (err) {
       console.error('Failed to disconnect:', err)
       setError(err as Error)
     }
-  }, [disconnectAsync])
+  }, [disconnect])
 
   const signMessage = useCallback(async (message: string) => {
     try {
@@ -76,7 +76,7 @@ export function MetaMaskAuthProvider({ children }: { children: React.ReactNode }
         isConnected,
         isConnecting,
         connect,
-        disconnect,
+        disconnect: handleDisconnect,
         signMessage,
         error,
       }}
