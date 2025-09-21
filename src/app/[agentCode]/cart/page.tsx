@@ -3,6 +3,7 @@
 import { useCart } from '@/contexts/CartContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import CartItemComponent from '@/components/cart/CartItem'
+import CryptoPaymentModal from '@/components/crypto/CryptoPaymentModal'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
@@ -12,9 +13,10 @@ import { useParams } from 'next/navigation'
 export default function AgentCartPage() {
   const params = useParams()
   const agentCode = params.agentCode as string
-  const { state: cartState, removeItem, updateQuantity, formatPrice } = useCart()
+  const { state: cartState, removeItem, formatPrice } = useCart()
   const { t, countryCode, currency } = useLanguage()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showCryptoModal, setShowCryptoModal] = useState(false)
   
   const handleCheckout = async () => {
     setIsProcessing(true)
@@ -45,6 +47,24 @@ export default function AgentCartPage() {
       setIsProcessing(false)
     }
   }
+
+  const handleCryptoPayment = async () => {
+    setShowCryptoModal(true)
+  }
+
+      // 注文情報を準備（代理店情報を含む）
+      const orderInfo = {
+        orderId: `agent_${agentCode}_${Date.now()}`,
+        totalAmount: "0.001", // テスト用に0.001 ETHに設定
+        currency: "ETH",
+        agentCode: agentCode,
+        items: cartState.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: "0.001" // テスト用に0.001 ETHに設定
+        }))
+      }
 
   const createShopifyCheckout = async () => {
     try {
@@ -263,7 +283,7 @@ export default function AgentCartPage() {
                 </div>
 
                 {/* 購入ボタン */}
-                <div className="mb-6">
+                <div className="mb-4">
                   <button
                     onClick={handleCheckout}
                     disabled={isProcessing}
@@ -276,8 +296,24 @@ export default function AgentCartPage() {
                       {isProcessing ? (
                         t({ JP: '処理中...', EN: 'Processing...' })
                       ) : (
-                        t({ JP: '購入する', EN: 'Purchase' })
+                        t({ JP: 'クレジットカードで購入', EN: 'Pay with Card' })
                       )}
+                    </div>
+                  </button>
+                </div>
+
+                {/* 仮想通貨決済ボタン */}
+                <div className="mb-6">
+                  <button
+                    onClick={handleCryptoPayment}
+                    disabled={isProcessing}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-colors duration-200"
+                  >
+                    <div className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
+                      </svg>
+                      {t({ JP: '仮想通貨で支払う', EN: 'Pay with Crypto' })}
                     </div>
                   </button>
                 </div>
@@ -305,6 +341,13 @@ export default function AgentCartPage() {
         </div>
       </main>
       <Footer />
+      
+      {/* 仮想通貨決済モーダル */}
+      <CryptoPaymentModal
+        isOpen={showCryptoModal}
+        onClose={() => setShowCryptoModal(false)}
+        orderInfo={orderInfo}
+      />
     </>
   )
 }

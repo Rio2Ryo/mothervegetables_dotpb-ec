@@ -3,31 +3,35 @@
 import { useMetaMaskShopifyCart } from '@/contexts/MetaMaskShopifyCartContext'
 import { useCart } from '@/contexts/CartContext'
 import CartItemComponent from '@/components/cart/CartItem'
+import CryptoPaymentModal from '@/components/crypto/CryptoPaymentModal'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 import { useState } from 'react'
 
 export default function CartPage() {
-  const { state, cart, language, handleCryptoCheckout, handleCreditCardCheckout } = useMetaMaskShopifyCart()
+  const { state, cart, language, handleCreditCardCheckout } = useMetaMaskShopifyCart()
   const { state: cartState } = useCart()
   const { t } = language
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showCryptoModal, setShowCryptoModal] = useState(false)
   
   const handleCryptoPayment = async () => {
-    setIsProcessing(true)
-    try {
-      await handleCryptoCheckout()
-    } catch (error) {
-      console.error('Crypto payment error:', error)
-      alert(t({ 
-        JP: '仮想通貨決済でエラーが発生しました', 
-        EN: 'Error occurred during crypto payment' 
-      }))
-    } finally {
-      setIsProcessing(false)
-    }
+    setShowCryptoModal(true)
   }
+
+      // 注文情報を準備
+      const orderInfo = {
+        orderId: `order_${Date.now()}`,
+        totalAmount: "0.001", // テスト用に0.001 ETHに設定
+        currency: "ETH",
+        items: cart.state.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: "0.001" // テスト用に0.001 ETHに設定
+        }))
+      }
 
   const handleCreditCardPayment = async () => {
     setIsProcessing(true)
@@ -241,11 +245,7 @@ export default function CartPage() {
                       <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
                       </svg>
-                      {isProcessing ? (
-                        t({ JP: '処理中...', EN: 'Processing...' })
-                      ) : (
-                        t({ JP: 'MetaMaskで支払う', EN: 'Pay with MetaMask' })
-                      )}
+                      {t({ JP: '仮想通貨で支払う', EN: 'Pay with Crypto' })}
                     </div>
                   </button>
                 </div>
@@ -273,6 +273,13 @@ export default function CartPage() {
         </div>
       </main>
       <Footer />
+      
+      {/* 仮想通貨決済モーダル */}
+      <CryptoPaymentModal
+        isOpen={showCryptoModal}
+        onClose={() => setShowCryptoModal(false)}
+        orderInfo={orderInfo}
+      />
     </>
   )
 }
