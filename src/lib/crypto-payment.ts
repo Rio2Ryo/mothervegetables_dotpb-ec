@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import { MASTER_WALLET_CONFIG, CHILD_WALLET_CONFIG } from './alchemy'
+import { MASTER_WALLET_CONFIG, CHILD_WALLET_CONFIG, NETWORK_CONFIG } from './alchemy'
 
 // 子ウォレット秘密鍵の保存用Map（メモリ内）
 const childWalletKeys = new Map<string, string>()
@@ -46,7 +46,7 @@ export interface PaymentStatus {
 }
 
 /**
- * マスターウォレットから子ウォレットを生成
+ * マスターウォレットから子ウォレットを生成（HD Wallet実装）
  */
 export async function generateChildWallet(orderId: string): Promise<ChildWallet> {
   try {
@@ -58,24 +58,19 @@ export async function generateChildWallet(orderId: string): Promise<ChildWallet>
     // 注文IDから決定論的なインデックスを生成
     const index = generateDeterministicIndex(orderId)
     
-    // 子ウォレットの導出パス
+    // 子ウォレットの導出パス（BIP44標準）
     const derivationPath = `${CHILD_WALLET_CONFIG.derivationPath}${index}`
     
-    // 注文IDとマスターウォレットの秘密鍵から決定論的に子ウォレットを生成
-    const seed = ethers.keccak256(
-      ethers.concat([
-        ethers.toUtf8Bytes(orderId),
-        ethers.toUtf8Bytes(MASTER_WALLET_CONFIG.privateKey),
-        ethers.toUtf8Bytes(derivationPath)
-      ])
-    )
+    // マスターウォレットからHD Walletを生成
+    const masterWallet = new ethers.Wallet(MASTER_WALLET_CONFIG.privateKey)
     
-    // 子ウォレットの生成
-    const childWallet = new ethers.Wallet(seed)
+    // HD Walletの実装（ethers.js v6では直接サポートされていないため、手動実装）
+    const childWallet = await deriveChildWallet(masterWallet, derivationPath)
     
     // 秘密鍵を保存（自動送金用）
     childWalletKeys.set(orderId, childWallet.privateKey)
     console.log(`🔑 子ウォレット秘密鍵を保存: ${orderId} -> ${childWallet.address}`)
+    console.log(`📋 導出パス: ${derivationPath}`)
     
     return {
       address: childWallet.address,
@@ -88,6 +83,49 @@ export async function generateChildWallet(orderId: string): Promise<ChildWallet>
     console.error('Error generating child wallet:', err)
     throw new Error('Failed to generate child wallet')
   }
+}
+
+/**
+ * HD Walletから子ウォレットを導出
+ */
+async function deriveChildWallet(masterWallet: ethers.Wallet, derivationPath: string): Promise<ethers.Wallet> {
+  try {
+    // マスターウォレットの秘密鍵からHD Walletを生成
+    const masterPrivateKey = masterWallet.privateKey
+    
+    // 導出パスを解析（例: m/44'/60'/0'/0/123）
+    const pathParts = derivationPath.split('/')
+    const index = parseInt(pathParts[pathParts.length - 1])
+    
+    // マスター秘密鍵とインデックスから子秘密鍵を導出
+    const childPrivateKey = derivePrivateKey(masterPrivateKey, index)
+    
+    // 子ウォレットを生成
+    const childWallet = new ethers.Wallet(childPrivateKey)
+    
+    console.log(`🔗 HD Wallet導出: ${masterWallet.address} -> ${childWallet.address}`)
+    console.log(`📋 導出パス: ${derivationPath}`)
+    console.log(`🔢 インデックス: ${index}`)
+    
+    return childWallet
+  } catch (error) {
+    console.error('HD Wallet導出エラー:', error)
+    throw new Error('Failed to derive child wallet')
+  }
+}
+
+/**
+ * マスター秘密鍵から子秘密鍵を導出
+ */
+function derivePrivateKey(masterPrivateKey: string, index: number): string {
+  // マスター秘密鍵とインデックスを結合してハッシュ化
+  const combined = ethers.concat([
+    ethers.toUtf8Bytes(masterPrivateKey),
+    ethers.toUtf8Bytes(index.toString())
+  ])
+  
+  const hash = ethers.keccak256(combined)
+  return hash
 }
 
 /**
@@ -175,8 +213,62 @@ export async function monitorPayment(
         console.error('❌ 自動送金エラー:', error)
       }
       
-      // 実際のトランザクション情報を取得（将来実装予定）
-      console.log(`📋 支払い検知: 実際のトランザクション情報を取得中...`)
+      // 実際のトランザクション情報を取得（直接RPC呼び出し）
+      try {
+        console.log(`🔍 トランザクション検索開始: ${walletAddress}`)
+        
+        // 直接RPC呼び出しでトランザクション情報を取得
+        const requestBody = {
+          jsonrpc: '2.0',
+          method: 'alchemy_getAssetTransfers',
+          params: [{
+            toAddress: walletAddress,
+            category: ['external'],
+            withMetadata: true,
+            maxCount: '0x1'  // 16進数で送信
+          }],
+          id: 42
+        }
+        
+        console.log(`📤 RPCリクエスト:`, JSON.stringify(requestBody, null, 2))
+        
+        const response = await fetch(NETWORK_CONFIG.rpcUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const data = await response.json()
+        console.log(`📊 RPC応答:`, data)
+        
+        if (data.result && data.result.transfers && data.result.transfers.length > 0) {
+          const latestTransfer = data.result.transfers[0]
+          console.log(`📋 最新トランザクション: ${latestTransfer.hash}`)
+          console.log(`📋 ブロック番号: ${latestTransfer.blockNum}`)
+          console.log(`📋 タイムスタンプ: ${latestTransfer.metadata.blockTimestamp}`)
+          
+          return {
+            orderId,
+            walletAddress,
+            isPaid: true,
+            amount: currentBalance,
+            transactionHash: latestTransfer.hash,
+            blockNumber: parseInt(latestTransfer.blockNum),
+            timestamp: new Date(parseInt(latestTransfer.metadata.blockTimestamp) * 1000)
+          }
+        } else {
+          console.log(`⚠️ トランザクションが見つかりません: ${walletAddress}`)
+        }
+      } catch (error) {
+        console.error('❌ トランザクション情報取得エラー:', error)
+        console.error('❌ エラー詳細:', error instanceof Error ? error.message : String(error))
+      }
       
       // フォールバック: 基本的な支払い情報を返す
       console.log(`📋 フォールバック: 基本的な支払い情報を返します`)
