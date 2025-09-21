@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { monitorPayment, PaymentStatus } from '@/lib/crypto-payment'
+import { monitorPayment } from '@/lib/crypto-payment'
 
 export async function POST(request: NextRequest) {
   try {

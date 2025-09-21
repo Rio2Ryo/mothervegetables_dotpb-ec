@@ -12,7 +12,6 @@ import Partners from '@/components/Partners';
 import TokenInfo from '@/components/TokenInfo';
 import Footer from '@/components/Footer';
 import LoadingScreen from '@/components/LoadingScreen';
-import { AgentStatus } from '@/components/agent/AgentStatus';
 import { AgentDiscountBadge } from '@/components/agent/AgentDiscountBadge';
 import type { Agent } from '@/types/microcms';
 
@@ -21,7 +20,7 @@ interface AgentPageClientProps {
   agentCode: string;
 }
 
-export default function AgentPageClient({ agent, agentCode }: AgentPageClientProps) {
+export default function AgentPageClient({ agent }: AgentPageClientProps) {
   const { setCurrentAgent } = useAgentStore();
   const [isLoading, setIsLoading] = useState(true);
 

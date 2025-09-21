@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateChildWallet, ChildWallet } from '@/lib/crypto-payment'
+import { generateChildWallet } from '@/lib/crypto-payment'
 import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(request: NextRequest) {

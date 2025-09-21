@@ -11,6 +11,7 @@ import { useToast } from '@/components/Toast'
 import Toast from '@/components/Toast'
 import { processDescriptionText } from '@/lib/text-utils'
 import { AgentDiscountBadge } from '@/components/agent/AgentDiscountBadge'
+import Image from 'next/image'
 
 interface ProductPageProps {
   params: Promise<{
@@ -223,9 +224,11 @@ function AgentProductPageClient({ params }: { params: Promise<{ handle: string }
             {/* 商品画像 */}
             <div className="space-y-4">
               <div className="relative">
-                <img
+                <Image
                   src={images[selectedImageIndex]?.url || images[0]?.url}
                   alt={images[selectedImageIndex]?.altText || product.title}
+                  width={400}
+                  height={384}
                   className="w-full h-96 object-cover rounded-xl"
                 />
                 {selectedVariant && (
