@@ -9,7 +9,15 @@
       "Bash(git commit:*)",
       "Bash(git pull:*)",
       "Bash(echo:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(npx vercel:*)",
+      "Bash(cat:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git config:*)",
+      "Bash(ssh:*)",
+      "Read(//c/Users/team4/.ssh/**)"
     ],
     "deny": [],
     "ask": []
