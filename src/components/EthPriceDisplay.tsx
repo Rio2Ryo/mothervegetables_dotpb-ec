@@ -80,28 +80,26 @@ export default function EthPriceDisplay({ usdPrice, productId, className = '' }:
   useEffect(() => {
     console.log('💰 EthPriceDisplay - ethPriceInUsd:', ethPriceInUsd, 'usdPrice:', usdPrice)
     
-    // USD to ETH conversion
-    const ethAmount = usdPrice / ethPriceInUsd
-    console.log('💰 Calculated ETH amount:', ethAmount)
-
     if (productId) {
       const guarantee = getPriceGuarantee(productId)
       if (guarantee && isPriceValid(productId)) {
         console.log('🔒 Using locked price:', guarantee.ethPrice)
         setDisplayPrice(guarantee.ethPrice)
       } else {
-        console.log('📊 Using current price:', ethAmount)
-        setDisplayPrice(ethAmount)
+        // 直接ETH価格を表示（0.0010-0.0019の範囲）
+        console.log('📊 Using direct ETH price:', ethPriceInUsd)
+        setDisplayPrice(ethPriceInUsd)
       }
     } else {
-      console.log('📊 Using current price (no productId):', ethAmount)
-      setDisplayPrice(ethAmount)
+      // 直接ETH価格を表示（0.0010-0.0019の範囲）
+      console.log('📊 Using direct ETH price (no productId):', ethPriceInUsd)
+      setDisplayPrice(ethPriceInUsd)
     }
-  }, [usdPrice, ethPriceInUsd, productId, getPriceGuarantee, isPriceValid])
+  }, [ethPriceInUsd, productId, getPriceGuarantee, isPriceValid])
 
   return (
     <span className={className}>
-      {displayPrice.toFixed(6)} ETH
+      {displayPrice.toFixed(4)} ETH
     </span>
   )
 }
