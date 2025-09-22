@@ -23,11 +23,15 @@ export function useEthPrice() {
     }
 
     // 初回実行
-    setEthPriceInUsd(generateRandomEthPrice())
+    const initialPrice = generateRandomEthPrice()
+    console.log('🎲 Initial ETH price:', initialPrice)
+    setEthPriceInUsd(initialPrice)
 
     // 5秒ごとにランダム価格を更新
     const interval = setInterval(() => {
-      setEthPriceInUsd(generateRandomEthPrice())
+      const newPrice = generateRandomEthPrice()
+      console.log('🎲 New ETH price:', newPrice)
+      setEthPriceInUsd(newPrice)
     }, 5000)
 
     return () => clearInterval(interval)
@@ -74,17 +78,23 @@ export default function EthPriceDisplay({ usdPrice, productId, className = '' }:
   const [displayPrice, setDisplayPrice] = useState(0)
 
   useEffect(() => {
+    console.log('💰 EthPriceDisplay - ethPriceInUsd:', ethPriceInUsd, 'usdPrice:', usdPrice)
+    
     // USD to ETH conversion
     const ethAmount = usdPrice / ethPriceInUsd
+    console.log('💰 Calculated ETH amount:', ethAmount)
 
     if (productId) {
       const guarantee = getPriceGuarantee(productId)
       if (guarantee && isPriceValid(productId)) {
+        console.log('🔒 Using locked price:', guarantee.ethPrice)
         setDisplayPrice(guarantee.ethPrice)
       } else {
+        console.log('📊 Using current price:', ethAmount)
         setDisplayPrice(ethAmount)
       }
     } else {
+      console.log('📊 Using current price (no productId):', ethAmount)
       setDisplayPrice(ethAmount)
     }
   }, [usdPrice, ethPriceInUsd, productId, getPriceGuarantee, isPriceValid])
