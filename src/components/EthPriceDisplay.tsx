@@ -10,41 +10,25 @@ interface LockedPrice {
 }
 
 // ETH価格のフック（グローバル状態管理）
-let cachedEthPrice: number | null = null
-let cacheTimestamp: number | null = null
-const CACHE_DURATION = 60000 // 1分間キャッシュ
 
 export function useEthPrice() {
   const [ethPriceInUsd, setEthPriceInUsd] = useState<number>(3000) // デフォルト値
 
   useEffect(() => {
-    const fetchEthPrice = async () => {
-      try {
-        // キャッシュが有効な場合はキャッシュを使用
-        if (cachedEthPrice && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_DURATION) {
-          setEthPriceInUsd(cachedEthPrice)
-          return
-        }
-
-        // CoinGecko APIから価格を取得
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd')
-        const data = await response.json()
-
-        if (data.ethereum?.usd) {
-          const price = data.ethereum.usd
-          setEthPriceInUsd(price)
-          cachedEthPrice = price
-          cacheTimestamp = Date.now()
-        }
-      } catch (error) {
-        console.error('Failed to fetch ETH price:', error)
-        // エラー時はデフォルト値を使用
-      }
+    // ランダムなETH価格を生成（0.0010-0.0019の範囲）
+    const generateRandomEthPrice = () => {
+      const min = 0.0010
+      const max = 0.0019
+      return Math.random() * (max - min) + min
     }
 
-    fetchEthPrice()
-    // 1分ごとに価格を更新
-    const interval = setInterval(fetchEthPrice, 60000)
+    // 初回実行
+    setEthPriceInUsd(generateRandomEthPrice())
+
+    // 5秒ごとにランダム価格を更新
+    const interval = setInterval(() => {
+      setEthPriceInUsd(generateRandomEthPrice())
+    }, 5000)
 
     return () => clearInterval(interval)
   }, [])
