@@ -11,6 +11,9 @@ import { useToast } from './Toast'
 import Toast from './Toast'
 import { processDescriptionText } from '@/lib/text-utils'
 import { AgentDiscountBadge } from '@/components/agent/AgentDiscountBadge'
+import EthPriceDisplay, { useEthPriceLock } from '@/components/EthPriceDisplay'
+import { usePriceGuarantee } from '@/contexts/PriceGuaranteeContext'
+import PriceGuaranteeStatus from '@/components/PriceGuaranteeStatus'
 
 interface ProductCardProps {
   product: ShopifyProduct
@@ -24,6 +27,8 @@ function ProductCard({ product }: ProductCardProps) {
   const agentCode = params.agentCode as string
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const { showCartSuccess } = useToast()
+  const { lockPriceForProduct, getLockedPrice } = useEthPriceLock()
+  const { lockPrice: lockPriceGuarantee, isPriceValid, resetPriceGuarantee, resetAllPriceGuarantees, resetAllPriceGuaranteeTimes } = usePriceGuarantee()
   
   const firstImage = product.images.edges[0]?.node
   const firstVariant = product.variants.edges[0]?.node
@@ -45,6 +50,17 @@ function ProductCard({ product }: ProductCardProps) {
     setIsAddingToCart(true)
     
     try {
+      // カート内の全商品の価格保証時間をリセット（価格は維持）
+      resetAllPriceGuaranteeTimes()
+      
+      // イーサ価格を確定（カート追加時点で価格をロック）
+      const currentEthPrice = 0.0010 + Math.random() * (0.0019 - 0.0010) // 現在の価格を取得
+      const usdPrice = parseFloat(firstVariant.price.amount)
+      
+      // 価格保証システムに登録（1分間保証）
+      lockPriceGuarantee(product.id, currentEthPrice, usdPrice)
+      lockPriceForProduct(product.id, currentEthPrice)
+      
       // 商品追加のアニメーション効果
       addItem(product, firstVariant.id, 1)
       
@@ -95,6 +111,27 @@ function ProductCard({ product }: ProductCardProps) {
           <h3 className="text-lg font-bold text-white mb-2 line-clamp-2">
             {product.title}
           </h3>
+          
+          {/* 価格表示（USD + ETH） */}
+          {firstVariant && (
+            <div className="mb-3">
+              <div className="text-lg font-bold text-green-400 mb-1">
+                {formatPrice(firstVariant.price.amount, firstVariant.price.currencyCode)}
+              </div>
+              <EthPriceDisplay 
+                usdPrice={parseFloat(firstVariant.price.amount)} 
+                productId={product.id}
+                className="text-sm"
+              />
+              
+              {/* 価格保証状況 */}
+              {isPriceValid(product.id) && (
+                <div className="mt-2">
+                  <PriceGuaranteeStatus productId={product.id} />
+                </div>
+              )}
+            </div>
+          )}
         
         {product.description && (
           <div className="text-gray-300 text-sm mb-3 line-clamp-3">

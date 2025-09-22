@@ -8,13 +8,17 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 import { useState } from 'react'
+import { usePriceGuarantee } from '@/contexts/PriceGuaranteeContext'
+import PriceGuaranteeStatus from '@/components/PriceGuaranteeStatus'
+import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
 
 export default function CartPage() {
   const { state, cart, language, handleCreditCardCheckout } = useMetaMaskShopifyCart()
-  const { state: cartState } = useCart()
+  const { state: cartState, clearCart } = useCart()
   const { t } = language
   const [isProcessing, setIsProcessing] = useState(false)
   const [showCryptoModal, setShowCryptoModal] = useState(false)
+  const { priceGuarantees, isPriceValid, resetAllPriceGuarantees, getRemainingTime } = usePriceGuarantee()
   
   const handleCryptoPayment = async () => {
     setShowCryptoModal(true)
@@ -93,6 +97,7 @@ export default function CartPage() {
   return (
     <>
       <Header />
+      <ExpiredItemCleanup />
       <main className="min-h-screen bg-black text-white pt-20">
         <div className="container mx-auto px-4 py-16">
           {/* ページヘッダー */}
@@ -138,19 +143,55 @@ export default function CartPage() {
             </div>
           )}
 
+          {/* 価格保証デバッグ情報 */}
+          <div className="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+            <div className="text-blue-400 font-medium mb-2">価格保証デバッグ情報</div>
+            <div className="text-sm text-gray-300">
+              <div>価格保証総数: {priceGuarantees.size}</div>
+              <div>カートアイテム数: {cart.state.items.length}</div>
+              <div>価格保証詳細:</div>
+              <pre className="text-xs mt-2 bg-gray-800 p-2 rounded">
+                {Array.from(priceGuarantees.entries()).map(([id, guarantee]) => 
+                  `${id}: ${guarantee.ethPrice.toFixed(4)} ETH (有効: ${isPriceValid(id)}) (残り: ${getRemainingTime(id)}秒)`
+                ).join('\n')}
+              </pre>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* カートアイテム一覧 */}
             <div className="lg:col-span-2">
               <div className="space-y-4">
                 {cart.state.items.map((item) => (
-                  <CartItemComponent key={item.id} item={item} />
+                  <div key={item.id}>
+                    <CartItemComponent item={item} />
+                    
+                    {/* デバッグ情報 */}
+                    <div className="mt-2 p-2 bg-gray-800 rounded text-xs">
+                      <div>商品ID: {item.id}</div>
+                      <div>価格保証有効: {isPriceValid(item.id) ? 'Yes' : 'No'}</div>
+                      <div>価格保証数: {priceGuarantees.size}</div>
+                      <div>残り時間: {getRemainingTime(item.id)}秒</div>
+                    </div>
+                    
+                    {/* 価格保証状況 */}
+                    {isPriceValid(item.id) && (
+                      <div className="mt-2">
+                        <PriceGuaranteeStatus productId={item.id} />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 
               {/* カートをクリアボタン */}
               <div className="mt-8">
                 <button
-                  onClick={() => cart.clearCart()}
+                  onClick={() => {
+                    cart.clearCart()
+                    // 価格保証もリセット
+                    resetAllPriceGuarantees()
+                  }}
                   className="text-red-400 hover:text-red-300 text-sm underline"
                 >
                   {t({ JP: 'カートをクリア', EN: 'Clear Cart' })}

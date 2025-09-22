@@ -2,6 +2,9 @@
 
 import { useCart, CartItem } from '@/contexts/CartContext'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { usePriceGuarantee } from '@/contexts/PriceGuaranteeContext'
+import EthPriceDisplay from '@/components/EthPriceDisplay'
+import { useEffect, useState } from 'react'
 
 interface CartItemProps {
   item: CartItem
@@ -10,6 +13,18 @@ interface CartItemProps {
 export default function CartItemComponent({ item }: CartItemProps) {
   const { t } = useLanguage()
   const { removeItem, updateQuantity, formatPrice } = useCart()
+  const { getPriceGuarantee, isPriceValid, getRemainingTime } = usePriceGuarantee()
+  const [remainingTime, setRemainingTime] = useState(0)
+
+  // 残り時間を更新
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const remaining = getRemainingTime(item.productId)
+      setRemainingTime(remaining)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [item.productId, getRemainingTime])
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) return
@@ -45,9 +60,33 @@ export default function CartItemComponent({ item }: CartItemProps) {
         <p className="text-xs text-gray-400 mt-1">
           {item.selectedOptions.map(option => `${option.name}: ${option.value}`).join(', ')}
         </p>
-        <p className="text-sm font-bold text-green-400 mt-1">
-          {formatPrice(item.price, item.currencyCode)}
-        </p>
+        <div className="mt-1">
+          <p className="text-sm font-bold text-green-400">
+            {formatPrice(item.price, item.currencyCode)}
+          </p>
+          {/* イーサ価格表示 */}
+          <EthPriceDisplay
+            usdPrice={parseFloat(item.price)}
+            productId={item.productId}
+            className="text-xs"
+          />
+          {/* 価格保証の残り時間 */}
+          {isPriceValid(item.productId) && remainingTime > 0 && (
+            <div className="mt-1">
+              <span className={`text-xs ${remainingTime < 15 ? 'text-red-400 animate-pulse' : 'text-yellow-400'}`}>
+                ⏰ {t({ JP: `価格保証: ${remainingTime}秒`, EN: `Price lock: ${remainingTime}s` })}
+              </span>
+            </div>
+          )}
+          {/* 価格保証期限切れ警告 */}
+          {!isPriceValid(item.productId) && getPriceGuarantee(item.productId) && (
+            <div className="mt-1">
+              <span className="text-xs text-red-500 font-bold animate-pulse">
+                ⚠️ {t({ JP: '価格保証期限切れ', EN: 'Price guarantee expired' })}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 数量コントロール */}

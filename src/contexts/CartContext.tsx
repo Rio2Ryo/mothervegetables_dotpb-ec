@@ -202,6 +202,7 @@ interface CartContextType {
   state: CartState
   addItem: (product: ShopifyProduct, variantId: string, quantity?: number) => Promise<void>
   removeItem: (variantId: string) => Promise<void>
+  removeMultipleItems: (variantIds: string[]) => Promise<void>
   updateQuantity: (variantId: string, quantity: number) => Promise<void>
   clearCart: () => void
   formatPrice: (amount: string, originalCurrencyCode: string) => string
@@ -314,11 +315,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // 商品をカートから削除
   const removeItem = async (variantId: string) => {
-    dispatch({ type: 'SET_LOADING', payload: true })
     dispatch({ type: 'SET_ERROR', payload: null })
 
     try {
-      // ローカル状態を更新
+      // ローカル状態を更新（ローディングを設定しない）
       dispatch({ type: 'REMOVE_ITEM', payload: variantId })
 
       // Shopifyカートに同期（デバウンス）
@@ -326,18 +326,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('カート削除エラー:', error)
       dispatch({ type: 'SET_ERROR', payload: 'カートの削除に失敗しました' })
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false })
     }
   }
 
   // 商品の数量を更新
   const updateQuantity = async (variantId: string, quantity: number) => {
-    dispatch({ type: 'SET_LOADING', payload: true })
     dispatch({ type: 'SET_ERROR', payload: null })
 
     try {
-      // ローカル状態を更新
+      // ローカル状態を更新（ローディングを設定しない）
       dispatch({ type: 'UPDATE_QUANTITY', payload: { id: variantId, quantity } })
 
       // Shopifyカートに同期（デバウンス）
@@ -345,8 +342,45 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('カート更新エラー:', error)
       dispatch({ type: 'SET_ERROR', payload: 'カートの更新に失敗しました' })
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false })
+    }
+  }
+
+  // 複数の商品を一度に削除
+  const removeMultipleItems = async (variantIds: string[]) => {
+    dispatch({ type: 'SET_ERROR', payload: null })
+
+    try {
+      // 各商品を削除（ローディングを設定しない）
+      for (const variantId of variantIds) {
+        dispatch({ type: 'REMOVE_ITEM', payload: variantId })
+      }
+
+      // Shopifyカートからも削除
+      if (state.shopifyCartId) {
+        // 残っているアイテムのリストを作成
+        const remainingItems = state.items.filter(item => !variantIds.includes(item.variantId))
+        const lines = remainingItems.map(item => ({
+          merchandiseId: item.variantId,
+          quantity: item.quantity,
+        }))
+
+        const response = await fetch('/api/cart', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cartId: state.shopifyCartId,
+            lines,
+            action: 'replace'
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error('Shopifyカートの更新に失敗しました')
+        }
+      }
+    } catch (error) {
+      console.error('複数商品の削除エラー:', error)
+      dispatch({ type: 'SET_ERROR', payload: '商品の削除に失敗しました' })
     }
   }
 
@@ -355,7 +389,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       // ローカル状態をクリア
       dispatch({ type: 'CLEAR_CART' })
-      
+
       // Shopifyカートもクリア
       if (state.shopifyCartId) {
         await fetch('/api/cart', {
@@ -580,6 +614,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     state,
     addItem,
     removeItem,
+    removeMultipleItems,
     updateQuantity,
     clearCart,
     formatPrice,

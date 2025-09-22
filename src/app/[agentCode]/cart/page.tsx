@@ -9,14 +9,18 @@ import Footer from '@/components/Footer'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
+import { usePriceGuarantee } from '@/contexts/PriceGuaranteeContext'
+import PriceGuaranteeStatus from '@/components/PriceGuaranteeStatus'
+import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
 
 export default function AgentCartPage() {
   const params = useParams()
   const agentCode = params.agentCode as string
-  const { state: cartState, removeItem, formatPrice } = useCart()
+  const { state: cartState, removeItem, formatPrice, clearCart } = useCart()
   const { t, countryCode, currency } = useLanguage()
   const [isProcessing, setIsProcessing] = useState(false)
   const [showCryptoModal, setShowCryptoModal] = useState(false)
+  const { priceGuarantees, isPriceValid, resetAllPriceGuarantees, getRemainingTime, lockPrice, forceExpireAllGuarantees } = usePriceGuarantee()
   
   const handleCheckout = async () => {
     setIsProcessing(true)
@@ -161,6 +165,7 @@ export default function AgentCartPage() {
   return (
     <>
       <Header />
+      <ExpiredItemCleanup />
       <main className="min-h-screen bg-black text-white pt-20">
         <div className="container mx-auto px-4 py-16">
           {/* ページヘッダー */}
@@ -204,12 +209,100 @@ export default function AgentCartPage() {
             </div>
           )}
 
+          {/* 価格保証デバッグ情報 */}
+          <div className="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+            <div className="text-blue-400 font-medium mb-2">価格保証デバッグ情報 (代理店経由)</div>
+            <div className="text-sm text-gray-300">
+              <div>価格保証総数: {priceGuarantees.size}</div>
+              <div>カートアイテム数: {cartState.items.length}</div>
+              <div>代理店コード: {agentCode}</div>
+              <div>カートアイテム詳細:</div>
+              <pre className="text-xs mt-2 bg-gray-800 p-2 rounded">
+                {cartState.items.map(item => 
+                  `${item.title}: productId=${item.productId}, variantId=${item.variantId}`
+                ).join('\n')}
+              </pre>
+              <div className="mt-2">価格保証詳細:</div>
+              <pre className="text-xs mt-2 bg-gray-800 p-2 rounded">
+                {Array.from(priceGuarantees.entries()).map(([id, guarantee]) => 
+                  `${id}: ${guarantee.ethPrice.toFixed(4)} ETH (有効: ${isPriceValid(id)}) (残り: ${getRemainingTime(id)}秒)`
+                ).join('\n')}
+              </pre>
+              
+              {/* テスト用: 手動で価格保証を設定 */}
+              <div className="mt-4 space-x-2">
+                <button
+                  onClick={() => {
+                    cartState.items.forEach(item => {
+                      const ethPrice = 0.0010 + Math.random() * (0.0019 - 0.0010)
+                      const usdPrice = parseFloat(item.price)
+                      lockPrice(item.id, ethPrice, usdPrice)
+                    })
+                  }}
+                  className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded"
+                >
+                  手動で価格保証を設定（テスト用）
+                </button>
+                
+                <button
+                  onClick={() => {
+                    // まず価格保証を設定
+                    cartState.items.forEach(item => {
+                      const ethPrice = 0.0010 + Math.random() * (0.0019 - 0.0010)
+                      const usdPrice = parseFloat(item.price)
+                      lockPrice(item.id, ethPrice, usdPrice)
+                    })
+                    
+                    // 少し待ってから強制的に期限切れにする
+                    setTimeout(() => {
+                      forceExpireAllGuarantees()
+                      console.log('全商品を強制的に期限切れに設定')
+                    }, 500)
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-2 rounded"
+                >
+                  強制的に期限切れにする（テスト用）
+                </button>
+                
+                <button
+                  onClick={() => {
+                    // カート内の全商品を即座に削除
+                    cartState.items.forEach(item => {
+                      removeItem(item.variantId)
+                    })
+                    console.log('全商品を即座に削除')
+                  }}
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-1 px-2 rounded"
+                >
+                  全商品を即座に削除（テスト用）
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* カートアイテム一覧 */}
             <div className="lg:col-span-2">
               <div className="space-y-4">
                 {cartState.items.map((item) => (
-                  <CartItemComponent key={item.id} item={item} />
+                  <div key={item.id}>
+                    <CartItemComponent item={item} />
+                    
+                    {/* デバッグ情報 */}
+                    <div className="mt-2 p-2 bg-gray-800 rounded text-xs">
+                      <div>商品ID: {item.id}</div>
+                      <div>価格保証有効: {isPriceValid(item.id) ? 'Yes' : 'No'}</div>
+                      <div>価格保証数: {priceGuarantees.size}</div>
+                      <div>残り時間: {getRemainingTime(item.id)}秒</div>
+                    </div>
+                    
+                    {/* 価格保証状況 */}
+                    {isPriceValid(item.id) && (
+                      <div className="mt-2">
+                        <PriceGuaranteeStatus productId={item.id} />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 
@@ -218,7 +311,9 @@ export default function AgentCartPage() {
                 <button
                   onClick={() => {
                     // カートをクリアする処理
-                    cartState.items.forEach(item => removeItem(item.id))
+                    clearCart()
+                    // 価格保証もリセット
+                    resetAllPriceGuarantees()
                   }}
                   className="text-red-400 hover:text-red-300 text-sm underline"
                 >

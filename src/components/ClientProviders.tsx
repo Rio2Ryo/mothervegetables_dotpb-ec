@@ -12,6 +12,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { wagmiConfig } from '@/lib/wagmi-config'
 import { MetaMaskAuthProvider } from '@/contexts/MetaMaskAuthContext'
 import { MetaMaskShopifyCartProvider } from '@/contexts/MetaMaskShopifyCartContext'
+import { PriceGuaranteeProvider } from '@/contexts/PriceGuaranteeContext'
+import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
 
 const queryClient = new QueryClient()
 
@@ -29,10 +31,13 @@ export function ClientProviders({ children }: ClientProvidersProps) {
               <ShopifyApolloProvider>
                 <CartProvider>
                   <MetaMaskShopifyCartProvider>
-                    <AuthInitializer />
-                    <AgentDetector />
-                    <AuthModal />
-                    {children}
+                    <PriceGuaranteeProvider>
+                      <ExpiredItemCleanup />
+                      <AuthInitializer />
+                      <AgentDetector />
+                      <AuthModal />
+                      {children}
+                    </PriceGuaranteeProvider>
                   </MetaMaskShopifyCartProvider>
                 </CartProvider>
               </ShopifyApolloProvider>

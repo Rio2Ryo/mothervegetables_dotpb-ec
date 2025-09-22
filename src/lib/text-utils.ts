@@ -32,37 +32,27 @@ export function escapeHtml(text: string): string {
  */
 export function processDescriptionText(text: string): string {
   if (!text) return '';
-  
-  console.log('🔍 processDescriptionText - Original text:', text);
-  console.log('🔍 processDescriptionText - Text length:', text.length);
-  console.log('🔍 processDescriptionText - Contains \\n:', text.includes('\n'));
-  console.log('🔍 processDescriptionText - Contains \\r:', text.includes('\r'));
-  console.log('🔍 processDescriptionText - Contains \\r\\n:', text.includes('\r\n'));
-  
+
   // 句読点の後に改行を追加する処理を試す
   let processedText = text;
-  
+
   // 句読点（。、）の後に改行を追加
   processedText = processedText.replace(/。/g, '。<br>');
   processedText = processedText.replace(/、/g, '、<br>');
-  
+
   // その他の区切り文字でも改行を追加
   processedText = processedText.replace(/»/g, '»<br>');
   processedText = processedText.replace(/ã/g, 'ã<br>');
-  
+
   // 既存の改行文字も処理
   processedText = convertNewlinesToHtml(processedText);
-  
-  console.log('🔍 processDescriptionText - After punctuation processing:', processedText);
-  
+
   // 既にHTMLタグが含まれている場合はそのまま返す
   if (processedText.includes('<') && processedText.includes('>')) {
-    console.log('🔍 processDescriptionText - Contains HTML tags, returning as is');
     return processedText;
   }
-  
+
   // HTMLタグが含まれていない場合はエスケープしてから改行を変換
   const result = convertNewlinesToHtml(escapeHtml(text));
-  console.log('🔍 processDescriptionText - Final result:', result);
   return result;
 }
