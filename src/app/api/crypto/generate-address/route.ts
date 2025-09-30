@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       throw new Error('NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN is not configured')
     }
 
-    const masterSeed = process.env.MASTER_SEED || 'test seed phrase for development only do not use in production'
+    const masterSeed = process.env.MASTER_SEED || 'vault consider bring shine that erase side oxygen mercy oven cushion radio'
     if (!process.env.MASTER_SEED) {
       console.warn('MASTER_SEED not configured, using test seed')
     }
