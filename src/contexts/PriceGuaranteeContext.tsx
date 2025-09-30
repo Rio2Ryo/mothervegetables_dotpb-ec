@@ -30,10 +30,10 @@ const PriceGuaranteeContext = createContext<PriceGuaranteeContextType | undefine
 export function PriceGuaranteeProvider({ children }: { children: ReactNode }) {
   const [priceGuarantees, setPriceGuarantees] = useState<Map<string, PriceGuarantee>>(new Map())
 
-  // 価格をロック（1分間保証）
+  // 価格をロック（15分間保証）
   const lockPrice = (productId: string, ethPrice: number, usdPrice: number) => {
     const now = Date.now()
-    const expiresAt = now + (60 * 1000) // 1分後
+    const expiresAt = now + (15 * 60 * 1000) // 15分後
 
     setPriceGuarantees(prev => {
       const newMap = new Map(prev)
@@ -86,13 +86,13 @@ export function PriceGuaranteeProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  // 価格保証を延長（1分間延長）
+  // 価格保証を延長（15分間延長）
   const extendPriceGuarantee = (productId: string) => {
     const guarantee = priceGuarantees.get(productId)
     if (!guarantee) return
 
     const now = Date.now()
-    const newExpiresAt = now + (60 * 1000) // 1分延長
+    const newExpiresAt = now + (15 * 60 * 1000) // 15分延長
 
     setPriceGuarantees(prev => {
       const newMap = new Map(prev)
@@ -121,7 +121,7 @@ export function PriceGuaranteeProvider({ children }: { children: ReactNode }) {
   // 全商品の価格保証時間だけをリセット（価格は維持）
   const resetAllPriceGuaranteeTimes = () => {
     const now = Date.now()
-    const newExpiresAt = now + (60 * 1000) // 1分後
+    const newExpiresAt = now + (15 * 60 * 1000) // 15分後
 
     setPriceGuarantees(prev => {
       const newMap = new Map()
@@ -153,7 +153,7 @@ export function PriceGuaranteeProvider({ children }: { children: ReactNode }) {
   // 全商品の価格保証を強制的に期限切れにする（テスト用）
   const forceExpireAllGuarantees = () => {
     const now = Date.now()
-    const pastTime = now - (2 * 60 * 1000) // 2分前
+    const pastTime = now - (30 * 60 * 1000) // 30分前
 
     setPriceGuarantees(prev => {
       const newMap = new Map()
@@ -161,7 +161,7 @@ export function PriceGuaranteeProvider({ children }: { children: ReactNode }) {
         newMap.set(productId, {
           ...guarantee,
           lockedAt: pastTime,
-          expiresAt: pastTime + (60 * 1000) // 1分前
+          expiresAt: pastTime + (15 * 60 * 1000) // 15分前
         })
       })
       return newMap

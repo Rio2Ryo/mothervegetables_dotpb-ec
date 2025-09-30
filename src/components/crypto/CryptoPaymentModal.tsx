@@ -231,8 +231,8 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
         })
         console.log('✅ Sepoliaテストネットに切り替えました')
         return true
-      } catch (switchErr: any) {
-        if (switchErr.code === 4902) {
+      } catch (switchErr: unknown) {
+        if (switchErr && typeof switchErr === 'object' && 'code' in switchErr && switchErr.code === 4902) {
           // ネットワークが追加されていない場合、追加を試行
           console.log('📝 Sepoliaテストネットを追加中...')
           
@@ -265,12 +265,12 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
           throw switchErr
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ ネットワーク接続エラー:', err)
-      
+
       // より詳細なエラーメッセージ
       let errorMessage = 'Sepoliaテストネットに接続できませんでした'
-      if (err.code) {
+      if (err && typeof err === 'object' && 'code' in err) {
         switch (err.code) {
           case 4001:
             errorMessage = 'ユーザーがネットワーク切り替えを拒否しました'
@@ -483,13 +483,14 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       // 顧客の残高を取得
       fetchCustomerBalance(walletData.walletAddress)
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ ワンクリック決済エラー:', err)
-      setError(`決済エラー: ${err.message || 'Unknown error'}`)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(`決済エラー: ${errorMessage}`)
       setTransferStatus({
         isTransferring: false,
         isTransferred: false,
-        error: err.message || 'Unknown error'
+        error: errorMessage
       })
     } finally {
       setIsOneClickProcessing(false)
@@ -548,19 +549,20 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       // 支払い監視を開始
       startPaymentMonitoring(paymentWallet)
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('MetaMask SepoliaETH送金エラー:', err)
-      setError(`SepoliaETH送金エラー: ${err.message || 'Unknown error'}`)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(`SepoliaETH送金エラー: ${errorMessage}`)
       setTransferStatus({
         isTransferring: false,
         isTransferred: false,
-        error: err.message || 'Unknown error'
+        error: errorMessage
       })
     }
   }
 
   // 支払い完了を確認してドラフト注文を正式注文に変換
-  const confirmPayment = async (paymentData: any) => {
+  const confirmPayment = async (paymentData: {transactionHash?: string, amount?: string}) => {
     try {
       console.log('🔄 支払い完了を確認中...', paymentData)
       
@@ -568,13 +570,13 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       let draftOrderId = null
       
       // 1. paymentWalletからdraftOrderIdを取得（最優先）
-      if ((paymentWallet as any)?.draftOrderId) {
-        draftOrderId = (paymentWallet as any).draftOrderId
+      if (paymentWallet && typeof paymentWallet === 'object' && 'draftOrderId' in paymentWallet) {
+        draftOrderId = paymentWallet.draftOrderId as string
         console.log('📝 DraftOrderId found in paymentWallet:', draftOrderId)
       }
       // 2. orderInfoから取得を試行
-      else if ((orderInfo as any).draftOrderId) {
-        draftOrderId = (orderInfo as any).draftOrderId
+      else if (orderInfo && typeof orderInfo === 'object' && 'draftOrderId' in orderInfo) {
+        draftOrderId = (orderInfo as {draftOrderId: string}).draftOrderId
         console.log('📝 DraftOrderId found in orderInfo:', draftOrderId)
       }
       // 3. paymentWalletのorderIdから取得を試行

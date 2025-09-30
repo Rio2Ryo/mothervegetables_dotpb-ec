@@ -68,17 +68,21 @@ export function MetaMaskShopifyCartProvider({ children }: { children: React.Reac
     dispatch({ type: 'SET_PAYMENT_METHOD', payload: 'crypto' })
 
     try {
-      // Implement crypto payment logic here
       console.log('Processing crypto payment with wallet:', metamask.address)
 
-      // You can sign a message to verify ownership
-      const message = `Authorize payment for order at ${new Date().toISOString()}`
-      const signature = await metamask.signMessage(message)
+      // OrderIDとPayment Addressを必ず同じタイミングで生成
+      const cryptoPaymentData = await cart.generateCryptoPayment(metamask.address)
+      
+      console.log('OrderID and Payment Address generated:', {
+        orderId: cryptoPaymentData.orderId,
+        address: cryptoPaymentData.data.address,
+        shopifyOrderId: cryptoPaymentData.data.shopifyOrderId
+      })
 
-      if (signature) {
-        console.log('Payment authorized with signature:', signature)
-        // Process the payment through your backend
-      }
+      // 支払い画面に遷移またはモーダルを表示
+      // ここで支払い画面の表示処理を実装
+      return cryptoPaymentData
+
     } catch (error) {
       console.error('Crypto checkout error:', error)
       throw error

@@ -18,13 +18,14 @@ export class GraphQLOrderManager {
   }
 
   async createDraftOrder(orderData: {
-    lineItems: Array<{variantId: string, quantity: number}>
+    lineItems: Array<{variantId: string, quantity: number, price?: string}>
     totalPrice: string
     customerEmail?: string
-    shippingAddress?: any
-    billingAddress?: any
+    shippingAddress?: Record<string, unknown>
+    billingAddress?: Record<string, unknown>
     walletAddress?: string
     orderId?: string
+    agentCode?: string
   }) {
     const lineItems = orderData.lineItems.map(item => ({
       variantId: `gid://shopify/ProductVariant/${this.extractNumericId(item.variantId)}`,
@@ -507,6 +508,6 @@ export class GraphQLOrderManager {
       throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`)
     }
 
-    return result.data.orders.edges.map((edge: any) => edge.node)
+    return result.data.orders.edges.map((edge: {node: unknown}) => edge.node)
   }
 }

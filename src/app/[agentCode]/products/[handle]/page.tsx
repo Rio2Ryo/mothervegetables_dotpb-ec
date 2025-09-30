@@ -60,7 +60,7 @@ function AgentProductPageClient({ params }: { params: Promise<{ handle: string }
       <div className="min-h-screen bg-black">
         <div className="container mx-auto px-4 py-16">
           <div className="animate-pulse">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
               <div className="space-y-4">
                 <div className="h-96 bg-gray-800 rounded-xl"></div>
                 <div className="flex space-x-2">
@@ -88,7 +88,7 @@ function AgentProductPageClient({ params }: { params: Promise<{ handle: string }
       <div className="min-h-screen bg-black">
         <div className="container mx-auto px-4 py-16">
           <div className="animate-pulse">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
               <div className="space-y-4">
                 <div className="h-96 bg-gray-800 rounded-xl"></div>
                 <div className="flex space-x-2">
@@ -220,7 +220,7 @@ function AgentProductPageClient({ params }: { params: Promise<{ handle: string }
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
             {/* 商品画像 */}
             <div className="space-y-4">
               <div className="relative">

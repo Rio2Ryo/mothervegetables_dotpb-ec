@@ -44,26 +44,28 @@ export default function AgentPageClient({ agent }: AgentPageClientProps) {
 
         {/* 代理店情報バナー */}
         <div className="fixed top-20 left-0 right-0 z-40 bg-gradient-to-r from-blue-600 to-purple-600 py-3 px-4">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm font-semibold">
-                代理店経由でアクセス中
-              </span>
-              <span className="bg-white text-blue-600 px-3 py-1 rounded-full text-sm font-bold">
-                {agent.name}
-              </span>
-            </div>
-            {agent.coupon_code && (
-              <div className="text-sm">
-                <span className="mr-2">特別割引適用中</span>
-                <AgentDiscountBadge />
+          <div className="container mx-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+              <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <span className="text-xs sm:text-sm font-semibold text-center sm:text-left">
+                  代理店経由でアクセス中
+                </span>
+                <span className="bg-white text-blue-600 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold">
+                  {agent.name}
+                </span>
               </div>
-            )}
+              {agent.coupon_code && (
+                <div className="text-xs sm:text-sm flex items-center">
+                  <span className="mr-2">特別割引適用中</span>
+                  <AgentDiscountBadge />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* トップページのコンテンツ (バナー分下にずらす) */}
-        <div className="pt-12">
+        <div className="pt-20 sm:pt-12">
           <Hero />
           <ProductCards />
           <ProjectOverview />

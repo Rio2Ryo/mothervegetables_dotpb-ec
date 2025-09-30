@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect, useRef, useCal
 import { ShopifyProduct } from '@/types/shopify'
 import { useLanguage } from './LanguageContext'
 import { CURRENCY_CONFIG, convertCurrency } from '@/lib/currency'
+import { generateOrderId } from '@/lib/utils/order-id'
 
 // カートアイテムの型定義
 export interface CartItem {
@@ -33,6 +34,8 @@ interface CartState {
   shopifyCartId: string | null
   checkoutUrl: string | null
   agentCode: string | null // 代理店コードを追加
+  orderId: string | null // 注文ID
+  sessionId: string // セッションID
 }
 
 // カートアクションの型定義
@@ -47,6 +50,8 @@ type CartAction =
   | { type: 'SET_SHOPIFY_CART'; payload: { cartId: string; checkoutUrl: string } }
   | { type: 'SYNC_SHOPIFY_CART'; payload: { cartId: string; checkoutUrl: string; items: CartItem[] } }
   | { type: 'SET_AGENT_CODE'; payload: string | null }
+  | { type: 'SET_ORDER_ID'; payload: string | null }
+  | { type: 'GENERATE_ORDER_ID' }
 
 // 初期状態
 const initialState: CartState = {
@@ -59,6 +64,8 @@ const initialState: CartState = {
   shopifyCartId: null,
   checkoutUrl: null,
   agentCode: null,
+  orderId: null,
+  sessionId: `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
 }
 
 // カートリデューサー
@@ -192,6 +199,20 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         agentCode: action.payload,
       }
     
+    case 'SET_ORDER_ID':
+      return {
+        ...state,
+        orderId: action.payload,
+      }
+    
+    case 'GENERATE_ORDER_ID': {
+      const { generateOrderId } = require('@/lib/utils/order-id')
+      return {
+        ...state,
+        orderId: generateOrderId(),
+      }
+    }
+    
     default:
       return state
   }
@@ -210,6 +231,9 @@ interface CartContextType {
   createShopifyCart: () => Promise<{ id: string; checkoutUrl: string; lines?: unknown } | undefined>
   getCurrentCurrency: () => { code: string; locale: string; symbol: string }
   setAgentCode: (agentCode: string | null) => void
+  generateOrderId: () => void
+  getOrderId: () => string | null
+  generateCryptoPayment: (walletAddress?: string) => Promise<any>
 }
 
 // コンテキスト作成
@@ -229,6 +253,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const savedCart = localStorage.getItem('shopify-cart')
       const savedCartId = localStorage.getItem('shopify-cart-id')
       const savedCheckoutUrl = localStorage.getItem('shopify-checkout-url')
+      const savedOrderId = localStorage.getItem('shopify-order-id')
+      const savedSessionId = localStorage.getItem('shopify-session-id')
       
       if (savedCart) {
         const cartItems = JSON.parse(savedCart)
@@ -240,6 +266,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           type: 'SET_SHOPIFY_CART', 
           payload: { cartId: savedCartId, checkoutUrl: savedCheckoutUrl } 
         })
+      }
+
+      if (savedOrderId) {
+        dispatch({ type: 'SET_ORDER_ID', payload: savedOrderId })
+      }
+
+      if (savedSessionId) {
+        // セッションIDは既に初期化されているので、保存されたものがあれば使用
+        // ただし、セッションIDは通常変更しない
       }
     } catch (error) {
       console.error('カートの読み込みに失敗しました:', error)
@@ -610,6 +645,125 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_AGENT_CODE', payload: agentCode })
   }
 
+  // OrderIDを生成してstateに保存
+  const createAndSetOrderId = () => {
+    dispatch({ type: 'GENERATE_ORDER_ID' })
+  }
+
+  // OrderIDを取得
+  const getOrderId = () => {
+    return state.orderId
+  }
+
+  // 暗号通貨決済用のOrderIDとPayment Addressを必ず同時生成
+  const generateCryptoPayment = async (walletAddress?: string) => {
+    try {
+      console.log('Starting crypto payment generation...')
+      
+      // 0. 前回のWalletIDをクリア
+      localStorage.removeItem('crypto-payment-wallet')
+      localStorage.removeItem('crypto-payment-address')
+      console.log('🧹 Cleared previous wallet data')
+      
+      // 1. 新しいOrderIDを生成（importされた関数を使用）
+      const { generateOrderId: genOrderId } = await import('@/lib/utils/order-id')
+      const newOrderId = genOrderId()
+      console.log('Generated OrderID:', newOrderId)
+      
+      // 2. OrderIDをstateに保存
+      dispatch({ type: 'SET_ORDER_ID', payload: newOrderId })
+
+      // 3. カート情報を準備
+      const cartItems = state.items.map(item => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+        price: parseFloat(item.price)
+      }))
+      console.log('Cart items prepared:', cartItems)
+      
+      // カートが空の場合はテスト用データを使用
+      if (cartItems.length === 0) {
+        console.warn('Cart is empty, using test data')
+        cartItems.push({
+          variantId: 'gid://shopify/ProductVariant/test',
+          quantity: 1,
+          price: 0.001
+        })
+      }
+
+      // 4. OrderIDと同時にPayment Addressを生成
+      console.log('Calling /api/crypto/generate-address...')
+
+      // totalPriceが0または未定義の場合、カートアイテムから再計算
+      const totalAmount = state.totalPrice > 0
+        ? state.totalPrice
+        : cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+
+      console.log('Total amount for payment:', totalAmount)
+      console.log('Cart state totalPrice:', state.totalPrice)
+
+      const response = await fetch('/api/crypto/generate-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: newOrderId, // 必ず新しく生成されたOrderIDを使用
+          amount: totalAmount || 0.001, // 最小値を設定（テスト用）
+          currency: 'ETH',
+          lineItems: cartItems,
+          customerEmail: null,
+          walletAddress: walletAddress
+        })
+      })
+
+      console.log('API response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ API error response:', errorText)
+        console.error('Response status:', response.status)
+        console.error('Request payload was:', {
+          orderId: newOrderId,
+          amount: totalAmount || 0.001,
+          currency: 'ETH',
+          lineItems: cartItems,
+          customerEmail: null,
+          walletAddress: walletAddress
+        })
+
+        // エラーメッセージを改善
+        let errorMessage = 'Failed to generate payment address'
+        try {
+          const errorJson = JSON.parse(errorText)
+          errorMessage = errorJson.error || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+
+        throw new Error(`${errorMessage} (Status: ${response.status})`)
+      }
+
+      const result = await response.json()
+      console.log('📊 API response data:', result)
+      console.log('🔑 Generated wallet address:', result.data?.address)
+      console.log('📍 Derivation path:', result.data?.path)
+      
+      // 5. ローカルストレージにOrderIDを保存
+      localStorage.setItem('shopify-order-id', newOrderId)
+      
+      return {
+        ...result,
+        orderId: newOrderId // 確実に同じOrderIDを返す
+      }
+    } catch (error) {
+      console.error('Crypto payment generation error:', error)
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      throw error
+    }
+  }
+
   const value: CartContextType = {
     state,
     addItem,
@@ -622,6 +776,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     createShopifyCart,
     getCurrentCurrency,
     setAgentCode,
+    createAndSetOrderId,
+    getOrderId,
+    generateCryptoPayment,
   }
 
   return (

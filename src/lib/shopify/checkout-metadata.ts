@@ -70,8 +70,10 @@ export async function createCheckoutWithAgentMetadata(
       quantity: item.quantity
     }));
 
-    // 代理店情報をattributesとして追加
+    // 包括的なメタデータをattributesとして追加
     const attributes = [];
+    
+    // 代理店情報
     if (agentCode) {
       attributes.push({
         key: 'agent_code',
@@ -82,6 +84,108 @@ export async function createCheckoutWithAgentMetadata(
         value: `agent_landing_page_${agentCode}`
       });
     }
+    
+    // 顧客情報
+    attributes.push({
+      key: 'customer_segment',
+      value: 'new'
+    });
+    attributes.push({
+      key: 'preferred_language',
+      value: 'ja-JP'
+    });
+    attributes.push({
+      key: 'timezone',
+      value: 'Asia/Tokyo'
+    });
+    attributes.push({
+      key: 'device_type',
+      value: 'desktop'
+    });
+    attributes.push({
+      key: 'browser',
+      value: 'Chrome'
+    });
+    attributes.push({
+      key: 'referrer',
+      value: 'direct'
+    });
+    
+    // 決済情報
+    attributes.push({
+      key: 'payment_method',
+      value: 'credit_card'
+    });
+    attributes.push({
+      key: 'payment_processor',
+      value: 'Shopify Payments'
+    });
+    attributes.push({
+      key: 'payment_gateway',
+      value: 'Shopify'
+    });
+    
+    // セッション情報
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    attributes.push({
+      key: 'session_id',
+      value: sessionId
+    });
+    attributes.push({
+      key: 'checkout_timestamp',
+      value: new Date().toISOString()
+    });
+    
+    // 価格保証情報
+    attributes.push({
+      key: 'price_guarantee_active',
+      value: 'false'
+    });
+    attributes.push({
+      key: 'price_guarantee_type',
+      value: 'time'
+    });
+    
+    // マーケティング情報
+    attributes.push({
+      key: 'utm_source',
+      value: 'direct'
+    });
+    attributes.push({
+      key: 'utm_medium',
+      value: 'none'
+    });
+    attributes.push({
+      key: 'utm_campaign',
+      value: 'none'
+    });
+    
+    // 配送情報（Excelエクスポート用）
+    attributes.push({
+      key: 'shipping_company',
+      value: 'Mother Vegetables Logistics'
+    });
+    attributes.push({
+      key: 'shipping_method',
+      value: 'standard'
+    });
+    attributes.push({
+      key: 'shipping_region',
+      value: 'Japan'
+    });
+    
+    // 注文属性としても追加（Shopify管理画面で確認可能）
+    attributes.push({
+      key: 'order_attributes',
+      value: JSON.stringify({
+        agent_code: agentCode,
+        customer_segment: 'new',
+        payment_method: 'credit_card',
+        shipping_company: 'Mother Vegetables Logistics',
+        session_id: sessionId,
+        checkout_timestamp: new Date().toISOString()
+      })
+    });
 
     // 割引コードを配列形式で準備
     const discountCodes = discountCode ? [discountCode] : undefined;
@@ -98,7 +202,7 @@ export async function createCheckoutWithAgentMetadata(
     const variables = {
       input: {
         lines: cartLines,
-        note: agentCode ? `代理店経由: ${agentCode}` : undefined,
+        note: undefined,
         attributes: attributes.length > 0 ? attributes : undefined,
         discountCodes: discountCodes,
         buyerIdentity: Object.keys(buyerIdentity).length > 0 ? buyerIdentity : undefined,
@@ -223,7 +327,7 @@ export async function updateCheckoutWithAgentMetadata(
     const variables = {
       checkoutId,
       input: {
-        note: agentCode ? `代理店経由: ${agentCode}` : undefined,
+        note: undefined,
         customAttributes: customAttributes.length > 0 ? customAttributes : undefined,
       },
     };
@@ -258,19 +362,75 @@ export async function saveAgentMetadataToOrder(
   agentCode?: string
 ) {
   try {
-    // 注文のメタフィールドに代理店情報を保存
-    // この機能はAdmin APIが必要なため、将来の拡張用
     console.log('Saving agent metadata to order:', {
       orderId,
       agentCode
     });
 
-    // 現在はログ出力のみ（実際の実装にはAdmin APIが必要）
+    // GraphQLOrderManagerを使用してメタデータを保存
+    const { GraphQLOrderManager } = await import('./graphql-order-manager');
+    const orderManager = new GraphQLOrderManager();
+
+    // 顧客情報を生成（実際の実装ではデータベースから取得）
+    const customerInfo = {
+      isNewCustomer: true,
+      totalOrders: 0,
+      customerSegment: 'new' as const,
+      preferredLanguage: 'ja-JP',
+      timezone: 'Asia/Tokyo',
+      deviceType: 'desktop' as const,
+      browser: 'Chrome',
+      referrer: 'direct',
+      utm_source: undefined,
+      utm_medium: undefined,
+      utm_campaign: undefined,
+    }
+    
+    // 価格保証情報（実際の実装ではPriceGuaranteeContextから取得）
+    const priceGuarantee = {
+      isActive: false,
+      guaranteedPrice: 0,
+      originalPrice: 0,
+      savings: 0,
+      expiresAt: new Date().toISOString(),
+      guaranteeType: 'time' as const,
+      guaranteeId: `guarantee_${Date.now()}`,
+    }
+    
+    // 決済詳細情報
+    const paymentDetails = {
+      method: 'credit_card' as const,
+      processor: 'Shopify Payments',
+      fee: 0,
+      exchangeRate: undefined,
+      gasFee: undefined,
+      confirmationTime: Date.now(),
+      transactionId: `cc_${Date.now()}`,
+      gateway: 'Shopify',
+    }
+    
+    // セッション情報
+    const sessionInfo = {
+      sessionId: `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      timestamp: new Date().toISOString(),
+    }
+
+    const metadataResult = await orderManager.addComprehensiveOrderMetadata(orderId, {
+      agentCode,
+      customerInfo,
+      priceGuarantee,
+      paymentDetails,
+      sessionInfo,
+    });
+
+    console.log('Agent metadata saved successfully:', metadataResult);
+
     return {
       success: true,
-      message: 'Agent metadata logged for order',
+      message: 'Agent metadata saved to order',
       orderId,
-      agentCode
+      agentCode,
+      metadataResult
     };
   } catch (error) {
     console.error('Error saving agent metadata to order:', error);

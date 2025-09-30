@@ -14,21 +14,27 @@ import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
 
 export default function CartPage() {
   const { state, cart, language, handleCreditCardCheckout } = useMetaMaskShopifyCart()
-  const { state: cartState, clearCart } = useCart()
+  const { state: cartState, clearCart, generateCryptoPayment, getOrderId } = useCart()
   const { t } = language
   const [isProcessing, setIsProcessing] = useState(false)
   const [showCryptoModal, setShowCryptoModal] = useState(false)
+  const [orderInfo, setOrderInfo] = useState<any>(null)
   const { priceGuarantees, isPriceValid, resetAllPriceGuarantees, getRemainingTime } = usePriceGuarantee()
   
   const handleCryptoPayment = async () => {
-    setShowCryptoModal(true)
-  }
-
-      // 注文情報を準備
-      const orderInfo = {
-        orderId: `order_${Date.now()}`,
+    try {
+      setIsProcessing(true)
+      
+      // OrderIDとPayment Addressを必ず同じタイミングで生成
+      const cryptoPaymentData = await generateCryptoPayment()
+      
+      // 注文情報を準備（生成されたOrderIDを使用）
+      const newOrderInfo = {
+        orderId: cryptoPaymentData.orderId, // 必ず同時生成されたOrderIDを使用
         totalAmount: "0.001", // テスト用に0.001 ETHに設定
         currency: "ETH",
+        paymentAddress: cryptoPaymentData.data.address,
+        shopifyOrderId: cryptoPaymentData.data.shopifyOrderId,
         items: cart.state.items.map(item => ({
           id: item.id,
           name: item.title,
@@ -36,6 +42,19 @@ export default function CartPage() {
           price: "0.001" // テスト用に0.001 ETHに設定
         }))
       }
+      
+      setOrderInfo(newOrderInfo)
+      setShowCryptoModal(true)
+    } catch (error) {
+      console.error('Crypto payment initialization error:', error)
+      alert(t({ 
+        JP: '暗号通貨決済の初期化でエラーが発生しました', 
+        EN: 'Error occurred during crypto payment initialization' 
+      }))
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   const handleCreditCardPayment = async () => {
     setIsProcessing(true)
@@ -316,11 +335,13 @@ export default function CartPage() {
       <Footer />
       
       {/* 仮想通貨決済モーダル */}
-      <CryptoPaymentModal
-        isOpen={showCryptoModal}
-        onClose={() => setShowCryptoModal(false)}
-        orderInfo={orderInfo}
-      />
+      {orderInfo && (
+        <CryptoPaymentModal
+          isOpen={showCryptoModal}
+          onClose={() => setShowCryptoModal(false)}
+          orderInfo={orderInfo}
+        />
+      )}
     </>
   )
 }

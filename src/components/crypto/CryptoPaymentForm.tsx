@@ -81,10 +81,13 @@ export default function CryptoPaymentForm({
       setLoading(true)
       setError(null)
 
+      // OrderIDが未定義の場合は生成
+      const currentOrderId = orderId || `order_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+
       const response = await fetch('/api/crypto/generate-address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, amount, currency })
+        body: JSON.stringify({ orderId: currentOrderId, amount, currency })
       })
 
       if (!response.ok) {

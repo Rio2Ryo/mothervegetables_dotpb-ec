@@ -1,34 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-import { AlchemyService } from '@/lib/crypto/alchemy'
+import { ShopifyOrderManager } from '@/lib/shopify/order-manager'
+import { AlchemyService } from '@/lib/crypto/alchemy-service'
 import { Network } from 'alchemy-sdk'
-
-const prisma = new PrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const orderId = searchParams.get('orderId')
-    const paymentId = searchParams.get('paymentId')
+    const shopifyOrderId = searchParams.get('shopifyOrderId')
 
-    if (!orderId && !paymentId) {
+    if (!orderId && !shopifyOrderId) {
       return NextResponse.json(
-        { error: 'Order ID or Payment ID is required' },
+        { error: 'Order ID or Shopify Order ID is required' },
         { status: 400 }
       )
     }
 
-    const payment = await prisma.cryptoPayment.findFirst({
-      where: orderId ? { orderId } : paymentId ? { id: paymentId } : undefined,
-    })
+    const orderManager = new ShopifyOrderManager()
+    
+    // Shopify注文を取得
+    let order
+    if (shopifyOrderId) {
+      order = await orderManager.getOrder(shopifyOrderId)
+    } else {
+      // orderIdで検索する場合は、タグで検索
+      const orders = await fetch(
+        `https://${process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/orders.json?status=any&tags=crypto-payment&limit=250`,
+        {
+          headers: {
+            'X-Shopify-Access-Token': process.env.SHOPIFY_ADMIN_ACCESS_TOKEN!
+          }
+        }
+      )
+      const ordersData = await orders.json()
+      order = ordersData.orders.find((o: any) => o.note?.includes(orderId))
+    }
 
-    if (!payment) {
+    if (!order) {
       return NextResponse.json(
-        { error: 'Payment not found' },
+        { error: 'Order not found' },
         { status: 404 }
       )
     }
 
+    // メタフィールドを取得
+    const metafields = await orderManager.getOrderMetafields(order.id)
+    const cryptoData = metafields.metafields?.reduce((acc: any, mf: any) => {
+      if (mf.namespace === 'crypto_payment') {
+        acc[mf.key] = mf.value
+      }
+      return acc
+    }, {})
+
+    if (!cryptoData?.to_address) {
+      return NextResponse.json(
+        { error: 'Crypto payment data not found' },
+        { status: 404 }
+      )
+    }
+
+    // Alchemyで残高を確認
     const alchemyApiKey = process.env.ALCHEMY_API_KEY
     if (!alchemyApiKey) {
       return NextResponse.json(
@@ -42,34 +73,26 @@ export async function GET(request: NextRequest) {
       : Network.ETH_SEPOLIA
 
     const alchemyService = new AlchemyService(alchemyApiKey, network)
-    const balance = await alchemyService.getBalance(payment.address)
+    const balance = await alchemyService.getBalance(cryptoData.to_address)
 
-    const isExpired = payment.expiresAt < new Date()
-
-    if (isExpired && payment.status === 'PENDING') {
-      await prisma.cryptoPayment.update({
-        where: { id: payment.id },
-        data: { status: 'EXPIRED' },
-      })
-      payment.status = 'EXPIRED'
-    }
+    const isPaid = order.financial_status === 'paid'
+    const isExpired = new Date() > new Date(Date.now() + 30 * 60 * 1000) // 30分後
 
     return NextResponse.json({
       success: true,
       data: {
-        paymentId: payment.id,
-        orderId: payment.orderId,
-        address: payment.address,
-        amount: payment.amount,
-        currency: payment.currency,
-        status: payment.status,
+        orderId: order.id,
+        shopifyOrderId: order.id,
+        address: cryptoData.to_address,
+        amount: cryptoData.amount,
+        currency: cryptoData.currency,
+        status: isPaid ? 'paid' : isExpired ? 'expired' : 'pending',
         balance: balance,
-        transactionHash: payment.transactionHash,
-        expiresAt: payment.expiresAt,
+        transactionHash: cryptoData.transaction_hash,
         isExpired,
-        createdAt: payment.createdAt,
-        confirmedAt: payment.confirmedAt,
-      },
+        createdAt: order.created_at,
+        financialStatus: order.financial_status
+      }
     })
   } catch (error) {
     console.error('Payment status check error:', error)

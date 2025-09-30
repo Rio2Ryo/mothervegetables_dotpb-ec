@@ -16,7 +16,7 @@ import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
 export default function AgentCartPage() {
   const params = useParams()
   const agentCode = params.agentCode as string
-  const { state: cartState, removeItem, formatPrice, clearCart } = useCart()
+  const { state: cartState, removeItem, formatPrice, clearCart, generateCryptoPayment } = useCart()
   const { t, countryCode, currency } = useLanguage()
   const [isProcessing, setIsProcessing] = useState(false)
   const [showCryptoModal, setShowCryptoModal] = useState(false)
@@ -52,16 +52,23 @@ export default function AgentCartPage() {
     }
   }
 
-  const handleCryptoPayment = async () => {
-    setShowCryptoModal(true)
-  }
+  const [orderInfo, setOrderInfo] = useState<any>(null)
 
+  const handleCryptoPayment = async () => {
+    try {
+      setIsProcessing(true)
+      
+      // OrderIDとPayment Addressを必ず同じタイミングで生成
+      const cryptoPaymentData = await generateCryptoPayment()
+      
       // 注文情報を準備（代理店情報を含む）
-      const orderInfo = {
-        orderId: `agent_${agentCode}_${Date.now()}`,
+      const newOrderInfo = {
+        orderId: cryptoPaymentData.orderId, // 必ず同時生成されたOrderIDを使用
         totalAmount: "0.001", // テスト用に0.001 ETHに設定
         currency: "ETH",
         agentCode: agentCode,
+        paymentAddress: cryptoPaymentData.data.address,
+        shopifyOrderId: cryptoPaymentData.data.shopifyOrderId,
         items: cartState.items.map(item => ({
           id: item.id,
           name: item.title,
@@ -69,6 +76,19 @@ export default function AgentCartPage() {
           price: "0.001" // テスト用に0.001 ETHに設定
         }))
       }
+      
+      setOrderInfo(newOrderInfo)
+      setShowCryptoModal(true)
+    } catch (error) {
+      console.error('Crypto payment initialization error:', error)
+      alert(t({ 
+        JP: '暗号通貨決済の初期化でエラーが発生しました', 
+        EN: 'Error occurred during crypto payment initialization' 
+      }))
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   const createShopifyCheckout = async () => {
     try {
@@ -382,33 +402,37 @@ export default function AgentCartPage() {
                   <button
                     onClick={handleCheckout}
                     disabled={isProcessing}
-                    className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-4 px-6 rounded-lg transition-colors duration-200"
+                    className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition-colors duration-200"
                   >
                     <div className="flex items-center justify-center">
-                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 sm:w-5 h-4 sm:h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      {isProcessing ? (
-                        t({ JP: '処理中...', EN: 'Processing...' })
-                      ) : (
-                        t({ JP: 'クレジットカードで購入', EN: 'Pay with Card' })
-                      )}
+                      <span className="text-sm sm:text-base">
+                        {isProcessing ? (
+                          t({ JP: '処理中...', EN: 'Processing...' })
+                        ) : (
+                          t({ JP: 'クレジットカードで購入', EN: 'Pay with Card' })
+                        )}
+                      </span>
                     </div>
                   </button>
                 </div>
 
                 {/* 仮想通貨決済ボタン */}
-                <div className="mb-6">
+                <div className="mb-4 sm:mb-6">
                   <button
                     onClick={handleCryptoPayment}
                     disabled={isProcessing}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-colors duration-200"
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition-colors duration-200"
                   >
                     <div className="flex items-center justify-center">
-                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 sm:w-5 h-4 sm:h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
                       </svg>
-                      {t({ JP: '仮想通貨で支払う', EN: 'Pay with Crypto' })}
+                      <span className="text-sm sm:text-base">
+                        {t({ JP: '仮想通貨で支払う', EN: 'Pay with Crypto' })}
+                      </span>
                     </div>
                   </button>
                 </div>
@@ -437,12 +461,14 @@ export default function AgentCartPage() {
       </main>
       <Footer />
       
-      {/* 仮想通貨決済モーダル */}
-      <CryptoPaymentModal
-        isOpen={showCryptoModal}
-        onClose={() => setShowCryptoModal(false)}
-        orderInfo={orderInfo}
-      />
+        {/* 仮想通貨決済モーダル */}
+        {orderInfo && (
+          <CryptoPaymentModal
+            isOpen={showCryptoModal}
+            onClose={() => setShowCryptoModal(false)}
+            orderInfo={orderInfo}
+          />
+        )}
     </>
   )
 }

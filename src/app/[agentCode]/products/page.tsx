@@ -273,14 +273,14 @@ export default function AgentProductsPage() {
       <div className="min-h-screen bg-black pt-20">
         <div className="container mx-auto px-4 py-16">
           {/* ページヘッダー */}
-          <div className="text-center mb-16">
-            <span className="inline-block bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 rounded-full text-sm mb-12">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <span className="inline-block bg-green-500/20 border border-green-500/50 text-green-400 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm mb-6 sm:mb-8 md:mb-12">
               {t({ JP: '商品一覧', EN: 'Our Products' })}
             </span>
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-10">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-6 sm:mb-8 md:mb-10">
               {t({ JP: 'MOTHER VEGETABLES製品', EN: 'MOTHER VEGETABLES Products' })}
             </h1>
-            <p className="text-sm md:text-base text-gray-300 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm md:text-base text-gray-300 max-w-3xl mx-auto leading-relaxed px-4">
               {t({
                 JP: '地球最初の生命体から生まれた、8つの産業分野に対応したMOTHER VEGETABLES製品をご紹介します。',
                 EN: 'Introducing MOTHER VEGETABLES products for 8 industrial sectors, born from Earth\'s first life form.'
@@ -289,26 +289,26 @@ export default function AgentProductsPage() {
           </div>
 
           {/* 代理店情報 */}
-          <div className="text-center mb-12">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 inline-block">
-              <p className="text-blue-300 font-medium">
+          <div className="text-center mb-6 sm:mb-8 md:mb-12">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 sm:p-4 inline-block">
+              <p className="text-sm sm:text-base text-blue-300 font-medium">
                 {t({ JP: '代理店経由でのご購入', EN: 'Purchasing through agent' })}
               </p>
-              <p className="text-blue-400 text-sm">
+              <p className="text-xs sm:text-sm text-blue-400">
                 {t({ JP: `代理店コード: ${agentCode}`, EN: `Agent Code: ${agentCode}` })}
               </p>
             </div>
           </div>
 
           {/* 商品統計 */}
-          <div className="text-center mb-12">
-            <p className="text-gray-400">
+          <div className="text-center mb-6 sm:mb-8 md:mb-12">
+            <p className="text-sm sm:text-base text-gray-400">
               {t({ JP: `全 ${products.length} 商品`, EN: `All ${products.length} Products` })}
             </p>
           </div>
 
           {/* 商品グリッド */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             {products.map((product: ShopifyProduct) => (
               <ProductCard key={product.id} product={product} agentCode={agentCode} />
             ))}
