@@ -4,7 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect, useRef, useCal
 import { ShopifyProduct } from '@/types/shopify'
 import { useLanguage } from './LanguageContext'
 import { CURRENCY_CONFIG, convertCurrency } from '@/lib/currency'
-import { generateOrderId } from '@/lib/utils/order-id'
+// generateOrderId は動的にrequireされるため、ここではインポートしない
 
 // カートアイテムの型定義
 export interface CartItem {
@@ -206,6 +206,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       }
     
     case 'GENERATE_ORDER_ID': {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { generateOrderId } = require('@/lib/utils/order-id')
       return {
         ...state,
@@ -233,7 +234,7 @@ interface CartContextType {
   setAgentCode: (agentCode: string | null) => void
   generateOrderId: () => void
   getOrderId: () => string | null
-  generateCryptoPayment: (walletAddress?: string) => Promise<any>
+  generateCryptoPayment: (walletAddress?: string) => Promise<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: CartItem[]}>
 }
 
 // コンテキスト作成

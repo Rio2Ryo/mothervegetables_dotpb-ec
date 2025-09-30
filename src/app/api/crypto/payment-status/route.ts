@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         }
       )
       const ordersData = await orders.json()
-      order = ordersData.orders.find((o: any) => o.note?.includes(orderId))
+      order = ordersData.orders.find((o: {note?: string}) => o.note?.includes(orderId))
     }
 
     if (!order) {
@@ -45,12 +45,12 @@ export async function GET(request: NextRequest) {
 
     // メタフィールドを取得
     const metafields = await orderManager.getOrderMetafields(order.id)
-    const cryptoData = metafields.metafields?.reduce((acc: any, mf: any) => {
+    const cryptoData = metafields.metafields?.reduce((acc: Record<string, string>, mf: {namespace: string, key: string, value: string}) => {
       if (mf.namespace === 'crypto_payment') {
         acc[mf.key] = mf.value
       }
       return acc
-    }, {})
+    }, {} as Record<string, string>)
 
     if (!cryptoData?.to_address) {
       return NextResponse.json(

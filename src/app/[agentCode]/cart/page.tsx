@@ -52,7 +52,7 @@ export default function AgentCartPage() {
     }
   }
 
-  const [orderInfo, setOrderInfo] = useState<any>(null)
+  const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: unknown[], agentCode?: string} | null>(null)
 
   const handleCryptoPayment = async () => {
     try {

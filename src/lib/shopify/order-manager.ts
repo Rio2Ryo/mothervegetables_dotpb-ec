@@ -21,8 +21,8 @@ export class ShopifyOrderManager {
     lineItems: Array<{variantId: string, quantity: number}>
     totalPrice: string
     customerEmail?: string
-    shippingAddress?: any
-    billingAddress?: any
+    shippingAddress?: Record<string, unknown>
+    billingAddress?: Record<string, unknown>
     walletAddress?: string
     orderId?: string
   }) {
@@ -203,7 +203,7 @@ export class ShopifyOrderManager {
       try {
         const metafields = await this.getOrderMetafields(order.id)
         const toAddress = metafields.metafields?.find(
-          (mf: any) => mf.namespace === 'crypto_payment' && mf.key === 'to_address'
+          (mf: {namespace: string, key: string, value: string}) => mf.namespace === 'crypto_payment' && mf.key === 'to_address'
         )?.value
 
         if (toAddress === cryptoAddress) {

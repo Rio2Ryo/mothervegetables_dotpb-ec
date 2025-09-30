@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     console.log('Processing order:', { orderId, orderName })
 
     // 注文の属性から代理店コードを取得
-    const agentCode = order.attributes?.find((attr: any) => 
+    const agentCode = order.attributes?.find((attr: {key: string, value: string}) =>
       attr.key === 'agent_code'
     )?.value
 

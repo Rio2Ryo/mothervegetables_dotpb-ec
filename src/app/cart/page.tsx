@@ -14,11 +14,11 @@ import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
 
 export default function CartPage() {
   const { state, cart, language, handleCreditCardCheckout } = useMetaMaskShopifyCart()
-  const { state: cartState, clearCart, generateCryptoPayment, getOrderId } = useCart()
+  const { state: cartState, generateCryptoPayment } = useCart()
   const { t } = language
   const [isProcessing, setIsProcessing] = useState(false)
   const [showCryptoModal, setShowCryptoModal] = useState(false)
-  const [orderInfo, setOrderInfo] = useState<any>(null)
+  const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: unknown[]} | null>(null)
   const { priceGuarantees, isPriceValid, resetAllPriceGuarantees, getRemainingTime } = usePriceGuarantee()
   
   const handleCryptoPayment = async () => {

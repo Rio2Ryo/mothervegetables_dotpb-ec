@@ -17,7 +17,7 @@ export class AlchemyService {
     return ethers.formatEther(balance)
   }
 
-  async getTransactions(address: string): Promise<any[]> {
+  async getTransactions(address: string): Promise<unknown[]> {
     return await this.alchemy.core.getAssetTransfers({
       fromAddress: address,
       category: ['external', 'internal']
