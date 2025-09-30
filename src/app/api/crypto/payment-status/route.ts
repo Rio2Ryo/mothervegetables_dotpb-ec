@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         }
       )
       const ordersData = await orders.json()
-      order = ordersData.orders.find((o: {note?: string}) => o.note?.includes(orderId))
+      order = ordersData.orders.find((o: {note?: string | null}) => o.note && orderId && o.note.includes(orderId))
     }
 
     if (!order) {

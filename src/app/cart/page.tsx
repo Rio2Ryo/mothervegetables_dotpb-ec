@@ -18,7 +18,7 @@ export default function CartPage() {
   const { t } = language
   const [isProcessing, setIsProcessing] = useState(false)
   const [showCryptoModal, setShowCryptoModal] = useState(false)
-  const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: unknown[]} | null>(null)
+  const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: {id: string, name: string, quantity: number, price: string}[]} | null>(null)
   const { priceGuarantees, isPriceValid, resetAllPriceGuarantees, getRemainingTime } = usePriceGuarantee()
   
   const handleCryptoPayment = async () => {
@@ -31,15 +31,14 @@ export default function CartPage() {
       // 注文情報を準備（生成されたOrderIDを使用）
       const newOrderInfo = {
         orderId: cryptoPaymentData.orderId, // 必ず同時生成されたOrderIDを使用
-        totalAmount: "0.001", // テスト用に0.001 ETHに設定
-        currency: "ETH",
-        paymentAddress: cryptoPaymentData.data.address,
-        shopifyOrderId: cryptoPaymentData.data.shopifyOrderId,
-        items: cart.state.items.map(item => ({
+        totalAmount: cryptoPaymentData.totalAmount,
+        currency: cryptoPaymentData.currency,
+        walletAddress: cryptoPaymentData.walletAddress,
+        items: cryptoPaymentData.items.map(item => ({
           id: item.id,
           name: item.title,
           quantity: item.quantity,
-          price: "0.001" // テスト用に0.001 ETHに設定
+          price: item.price
         }))
       }
       

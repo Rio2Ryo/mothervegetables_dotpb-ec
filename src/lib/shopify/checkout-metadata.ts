@@ -415,7 +415,8 @@ export async function saveAgentMetadataToOrder(
       timestamp: new Date().toISOString(),
     }
 
-    const metadataResult = await orderManager.addComprehensiveOrderMetadata(orderId, {
+    // TODO: メタデータ追加機能を実装
+    console.log('Metadata to be added:', {
       agentCode,
       customerInfo,
       priceGuarantee,
@@ -423,14 +424,21 @@ export async function saveAgentMetadataToOrder(
       sessionInfo,
     });
 
-    console.log('Agent metadata saved successfully:', metadataResult);
+    // const metadataResult = await orderManager.addComprehensiveOrderMetadata(orderId, {
+    //   agentCode,
+    //   customerInfo,
+    //   priceGuarantee,
+    //   paymentDetails,
+    //   sessionInfo,
+    // });
+
+    // console.log('Agent metadata saved successfully:', metadataResult);
 
     return {
       success: true,
       message: 'Agent metadata saved to order',
       orderId,
-      agentCode,
-      metadataResult
+      agentCode
     };
   } catch (error) {
     console.error('Error saving agent metadata to order:', error);

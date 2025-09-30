@@ -647,7 +647,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }
 
   // OrderIDを生成してstateに保存
-  const createAndSetOrderId = () => {
+  const generateOrderId = () => {
     dispatch({ type: 'GENERATE_ORDER_ID' })
   }
 
@@ -777,7 +777,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     createShopifyCart,
     getCurrentCurrency,
     setAgentCode,
-    createAndSetOrderId,
+    generateOrderId,
     getOrderId,
     generateCryptoPayment,
   }

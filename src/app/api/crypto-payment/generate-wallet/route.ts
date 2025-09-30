@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     try {
       const orderManager = new GraphQLOrderManager()
       const draftOrder = await orderManager.createDraftOrder({
-        lineItems: items.map(item => ({
+        lineItems: items.map((item: {id: string, quantity: number, price: string}) => ({
           variantId: item.id,
           quantity: item.quantity,
           price: item.price

@@ -52,7 +52,7 @@ export default function AgentCartPage() {
     }
   }
 
-  const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: unknown[], agentCode?: string} | null>(null)
+  const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: {id: string, name: string, quantity: number, price: string}[], agentCode?: string} | null>(null)
 
   const handleCryptoPayment = async () => {
     try {
@@ -67,8 +67,7 @@ export default function AgentCartPage() {
         totalAmount: "0.001", // テスト用に0.001 ETHに設定
         currency: "ETH",
         agentCode: agentCode,
-        paymentAddress: cryptoPaymentData.data.address,
-        shopifyOrderId: cryptoPaymentData.data.shopifyOrderId,
+        walletAddress: cryptoPaymentData.walletAddress,
         items: cartState.items.map(item => ({
           id: item.id,
           name: item.title,

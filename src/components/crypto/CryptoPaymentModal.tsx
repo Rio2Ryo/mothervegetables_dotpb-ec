@@ -282,7 +282,8 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
             errorMessage = 'MetaMaskで処理中のリクエストがあります'
             break
           default:
-            errorMessage = `ネットワークエラー: ${err.message || err.code}`
+            const msg = (err && typeof err === 'object' && 'message' in err) ? err.message : err.code
+            errorMessage = `ネットワークエラー: ${msg}`
         }
       }
       
@@ -562,7 +563,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
   }
 
   // 支払い完了を確認してドラフト注文を正式注文に変換
-  const confirmPayment = async (paymentData: {transactionHash?: string, amount?: string}) => {
+  const confirmPayment = async (paymentData: {transactionHash?: string, amount?: string, fromAddress?: string, toAddress?: string, currency?: string}) => {
     try {
       console.log('🔄 支払い完了を確認中...', paymentData)
       

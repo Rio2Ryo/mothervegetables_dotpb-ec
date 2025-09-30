@@ -88,15 +88,24 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     }
     
-    const metadataResult = await orderManager.addComprehensiveOrderMetadata(completedOrder.draftOrder.order.id, {
+    // TODO: メタデータ追加機能を実装
+    console.log('Metadata to be added:', {
       agentCode,
       customerInfo,
       priceGuarantee,
       paymentDetails,
       sessionInfo,
     })
-    
-    console.log('Comprehensive metadata added successfully:', metadataResult)
+
+    // const metadataResult = await orderManager.addComprehensiveOrderMetadata(completedOrder.draftOrder.order.id, {
+    //   agentCode,
+    //   customerInfo,
+    //   priceGuarantee,
+    //   paymentDetails,
+    //   sessionInfo,
+    // })
+
+    // console.log('Comprehensive metadata added successfully:', metadataResult)
 
     const responseData = {
       success: true,

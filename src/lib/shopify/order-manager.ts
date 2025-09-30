@@ -18,7 +18,7 @@ export class ShopifyOrderManager {
   }
 
   async createOrder(orderData: {
-    lineItems: Array<{variantId: string, quantity: number}>
+    lineItems: Array<{variantId: string, quantity: number, price?: string}>
     totalPrice: string
     customerEmail?: string
     shippingAddress?: Record<string, unknown>

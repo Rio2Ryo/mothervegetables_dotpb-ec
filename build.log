@@ -1,0 +1,72 @@
+
+> mother-vegetables-nextjs@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.3
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 9.4s
+   Linting and checking validity of types ...
+
+./src/app/products/page.tsx
+56:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/products/[handle]/page.tsx
+223:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+248:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/[agentCode]/products/page.tsx
+58:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/[agentCode]/products/[handle]/page.tsx
+258:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/agent/AgentDetector.tsx
+79:6  Warning: React Hook useEffect has a missing dependency: 'setAgentCode'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/cart/CartItem.tsx
+43:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/crypto/CryptoPaymentForm.tsx
+46:6  Warning: React Hook useEffect has a missing dependency: 'generatePaymentAddress'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+71:6  Warning: React Hook useEffect has a missing dependency: 'checkPaymentStatus'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+77:6  Warning: React Hook useEffect has a missing dependency: 'onSuccess'. Either include it or remove the dependency array. If 'onSuccess' changes too often, find the parent component that defines it and wrap that definition in useCallback.  react-hooks/exhaustive-deps
+
+./src/components/crypto/CryptoPaymentModal.tsx
+703:6  Warning: React Hook useEffect has a missing dependency: 'fetchWalletInfo'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/EthPriceDisplay.tsx
+98:6  Warning: React Hook useEffect has a missing dependency: 'usdPrice'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/ProductCards.tsx
+30:32  Warning: 'getLockedPrice' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+31:56  Warning: 'resetPriceGuarantee' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+31:77  Warning: 'resetAllPriceGuarantees' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+85:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/ProjectOverview.tsx
+52:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+59:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+102:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/TokenInfo.tsx
+26:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/contexts/CartContext.tsx
+309:6  Warning: React Hook useEffect has a missing dependency: 'state.isLoading'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/lib/shopify/auth.ts
+8:3  Warning: 'Customer' is defined but never used.  @typescript-eslint/no-unused-vars
+9:3  Warning: 'CustomerAccessToken' is defined but never used.  @typescript-eslint/no-unused-vars
+10:3  Warning: 'CustomerUserError' is defined but never used.  @typescript-eslint/no-unused-vars
+11:3  Warning: 'CustomerCreateInput' is defined but never used.  @typescript-eslint/no-unused-vars
+12:3  Warning: 'LoginFormData' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/shopify-admin-client.ts
+4:45  Warning: '_email' is defined but never used.  @typescript-eslint/no-unused-vars
+9:38  Warning: '_customerData' is defined but never used.  @typescript-eslint/no-unused-vars
+14:48  Warning: '_customerId' is defined but never used.  @typescript-eslint/no-unused-vars
+14:69  Warning: '_metafields' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
