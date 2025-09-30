@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+// import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
 
-const prisma = new PrismaClient()
+// const prisma = new PrismaClient()
 
 interface AlchemyWebhookEvent {
   webhookId: string
@@ -64,7 +64,22 @@ export async function POST(request: NextRequest) {
 
     const webhook: AlchemyWebhookEvent = JSON.parse(rawBody)
 
+    // TODO: Prisma実装後に有効化
+    console.log('Webhook received:', {
+      webhookId: webhook.webhookId,
+      activityCount: webhook.event.activity.length,
+    })
+
     for (const activity of webhook.event.activity) {
+      console.log('Activity:', {
+        from: activity.fromAddress,
+        to: activity.toAddress,
+        value: activity.value,
+        hash: activity.hash,
+      })
+
+      // TODO: Prisma実装後に有効化
+      /*
       const payment = await prisma.cryptoPayment.findFirst({
         where: {
           address: activity.toAddress,
@@ -88,7 +103,6 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          // TODO: Shopifyの注文を更新する処理を追加
           console.log(`Payment confirmed for order ${payment.orderId}`)
         } else {
           await prisma.cryptoPayment.update({
@@ -103,6 +117,7 @@ export async function POST(request: NextRequest) {
           console.log(`Insufficient payment for order ${payment.orderId}`)
         }
       }
+      */
     }
 
     return NextResponse.json({ success: true })
