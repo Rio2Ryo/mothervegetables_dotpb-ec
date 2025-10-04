@@ -338,7 +338,13 @@ export class GraphQLOrderManager {
             order {
               id
               name
-              financialStatus
+              email
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
             }
           }
           userErrors {
