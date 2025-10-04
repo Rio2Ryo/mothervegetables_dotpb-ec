@@ -1,13 +1,12 @@
 import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import { cookies } from 'next/headers'
 
 declare module 'next-auth' {
   interface Session {
     accessToken?: string
     tenant?: string
   }
-  
+
   interface User {
     id?: string
   }
@@ -27,19 +26,7 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token
         token.id = profile.sub
       }
-      
-      // 代理店コードをCookieから取得してトークンに追加
-      try {
-        const cookieStore = cookies()
-        const tenant = cookieStore.get('tenant')?.value
-        if (tenant) {
-          token.tenant = tenant
-        }
-      } catch (error) {
-        // Cookieの取得に失敗した場合は無視
-        console.warn('Failed to get tenant cookie:', error)
-      }
-      
+
       return token
     },
     async session({ session, token }) {
@@ -47,11 +34,6 @@ export const authOptions: NextAuthOptions = {
         // 型アサーションを使用してidプロパティを追加
         (session.user as { id?: string }).id = token.id as string
         session.accessToken = token.accessToken as string
-        
-        // 代理店コードをセッションに追加
-        if (token.tenant) {
-          session.tenant = token.tenant
-        }
       }
       return session
     },
@@ -67,10 +49,6 @@ export const authOptions: NextAuthOptions = {
       // デフォルトはベースURL
       return baseUrl
     },
-  },
-  pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
   },
   session: {
     strategy: 'jwt',
