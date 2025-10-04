@@ -41,6 +41,7 @@ export interface PaymentStatus {
   isPaid: boolean
   amount: string
   transactionHash?: string
+  fromAddress?: string
   blockNumber?: number
   timestamp?: Date
 }
@@ -250,15 +251,17 @@ export async function monitorPayment(
         if (data.result && data.result.transfers && data.result.transfers.length > 0) {
           const latestTransfer = data.result.transfers[0]
           console.log(`📋 最新トランザクション: ${latestTransfer.hash}`)
+          console.log(`📋 送信元: ${latestTransfer.from}`)
           console.log(`📋 ブロック番号: ${latestTransfer.blockNum}`)
           console.log(`📋 タイムスタンプ: ${latestTransfer.metadata.blockTimestamp}`)
-          
+
           return {
             orderId,
             walletAddress,
             isPaid: true,
             amount: currentBalance,
             transactionHash: latestTransfer.hash,
+            fromAddress: latestTransfer.from,
             blockNumber: parseInt(latestTransfer.blockNum),
             timestamp: new Date(parseInt(latestTransfer.metadata.blockTimestamp) * 1000)
           }
@@ -278,6 +281,7 @@ export async function monitorPayment(
         isPaid: true,
         amount: currentBalance,
         transactionHash: "0x" + "0".repeat(64), // プレースホルダー
+        fromAddress: "0x0000000000000000000000000000000000000000", // プレースホルダー
         blockNumber: 12345678,
         timestamp: new Date()
       }
@@ -287,7 +291,8 @@ export async function monitorPayment(
       orderId,
       walletAddress,
       isPaid: false,
-      amount: currentBalance
+      amount: currentBalance,
+      fromAddress: undefined
     }
   } catch (error) {
     console.error('Error monitoring payment:', error)

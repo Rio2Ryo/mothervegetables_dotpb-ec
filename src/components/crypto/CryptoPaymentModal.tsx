@@ -231,22 +231,34 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
         if (result.success) {
           console.log('📊 支払い状況更新:', result.data)
           setPaymentStatus(result.data)
-          
+
           if (result.data.isPaid) {
             console.log('✅ 支払い完了！')
             setIsMonitoring(false)
             clearInterval(interval)
             setMonitoringInterval(null)
-            
+
             // ドラフト注文を正式注文に変換
-            await confirmPayment(result.data)
-            
+            // 必要なパラメータが揃っている場合のみconfirmPaymentを呼び出す
+            if (result.data.transactionHash && result.data.fromAddress) {
+              await confirmPayment({
+                transactionHash: result.data.transactionHash,
+                amount: result.data.amount || wallet.totalAmount,
+                fromAddress: result.data.fromAddress,
+                toAddress: wallet.walletAddress,
+                currency: wallet.currency
+              })
+            } else {
+              console.log('⚠️ トランザクション情報が不完全なため、confirmPaymentをスキップ')
+              console.log('result.data:', result.data)
+            }
+
             // 自動移行の状況を表示
             setTransferStatus({
               isTransferring: true,
               isTransferred: false
             })
-            
+
             // 自動移行の完了を待つ（5秒後）
             setTimeout(() => {
               setTransferStatus({
@@ -746,13 +758,13 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
   }
 
   // 支払い完了を確認してドラフト注文を正式注文に変換
-  const confirmPayment = async (paymentData: {transactionHash?: string, amount?: string, fromAddress?: string, toAddress?: string, currency?: string}) => {
+  const confirmPayment = async (paymentData: {transactionHash: string, amount: string, fromAddress: string, toAddress: string, currency: string}) => {
     try {
       console.log('🔄 支払い完了を確認中...', paymentData)
-      
+
       // draftOrderIdを取得（複数のソースから試行）
       let draftOrderId = null
-      
+
       // 1. paymentWalletからdraftOrderIdを取得（最優先）
       if (paymentWallet && typeof paymentWallet === 'object' && 'draftOrderId' in paymentWallet) {
         draftOrderId = paymentWallet.draftOrderId as string
@@ -773,7 +785,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
         draftOrderId = orderInfo.orderId
         console.log('📝 DraftOrderId found in orderInfo.orderId:', draftOrderId)
       }
-      
+
       if (!draftOrderId) {
         console.error('❌ DraftOrderId not found in any source')
         console.error('orderInfo:', orderInfo)
@@ -781,6 +793,15 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
         console.error('paymentData:', paymentData)
         return
       }
+
+      console.log('📤 送信するデータ:', {
+        draftOrderId,
+        transactionHash: paymentData.transactionHash,
+        fromAddress: paymentData.fromAddress,
+        toAddress: paymentData.toAddress,
+        amount: paymentData.amount,
+        currency: paymentData.currency
+      })
 
       const response = await fetch('/api/crypto/confirm-payment', {
         method: 'POST',
@@ -790,10 +811,10 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
         body: JSON.stringify({
           draftOrderId: draftOrderId,
           transactionHash: paymentData.transactionHash,
-          fromAddress: paymentData.fromAddress || 'unknown',
-          toAddress: paymentData.toAddress || paymentWallet?.walletAddress,
-          amount: paymentData.amount || paymentWallet?.totalAmount,
-          currency: paymentData.currency || 'SepoliaETH'
+          fromAddress: paymentData.fromAddress,
+          toAddress: paymentData.toAddress,
+          amount: paymentData.amount,
+          currency: paymentData.currency
         }),
       })
 
@@ -833,7 +854,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
 
       if (result.success) {
         setPaymentStatus(result.data)
-        
+
         if (result.data.isPaid) {
           console.log('✅ 支払い完了！')
           setIsMonitoring(false)
@@ -841,9 +862,22 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
             clearInterval(monitoringInterval)
             setMonitoringInterval(null)
           }
-          
+
           // ドラフト注文を正式注文に変換
-          await confirmPayment(result.data)
+          // 必要なパラメータが揃っている場合のみconfirmPaymentを呼び出す
+          if (paymentWallet && result.data.transactionHash && result.data.fromAddress) {
+            await confirmPayment({
+              transactionHash: result.data.transactionHash,
+              amount: result.data.amount || paymentWallet.totalAmount,
+              fromAddress: result.data.fromAddress,
+              toAddress: paymentWallet.walletAddress,
+              currency: paymentWallet.currency
+            })
+          } else {
+            console.log('⚠️ トランザクション情報が不完全なため、confirmPaymentをスキップ')
+            console.log('result.data:', result.data)
+            console.log('paymentWallet:', paymentWallet)
+          }
         }
       }
     } catch (err) {
