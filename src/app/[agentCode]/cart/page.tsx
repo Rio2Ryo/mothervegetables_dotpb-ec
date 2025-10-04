@@ -70,6 +70,7 @@ export default function AgentCartPage() {
   }
 
   const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: {id: string, name: string, quantity: number, price: string}[], agentCode?: string} | null>(null)
+  const [currentConnectedWallet, setCurrentConnectedWallet] = useState<{address: string, balance: string, network: string} | null>(null)
 
   // MetaMaskウォレット情報を取得
   const fetchWalletInfo = async () => {
@@ -101,22 +102,28 @@ export default function AgentCartPage() {
                              chainId === '0x1' ? 'Ethereum Mainnet' :
                              `Network ${chainId}`
 
-          setWalletInfo({
+          const walletData = {
             address,
             balance: balanceInEth,
             network: networkName
-          })
+          }
+
+          setWalletInfo(walletData)
 
           console.log('✅ ウォレット情報取得完了')
+          return walletData
         } else {
           setWalletInfo(null)
+          return null
         }
       } else {
         setWalletInfo(null)
+        return null
       }
     } catch (err) {
       console.error('❌ ウォレット情報取得エラー:', err)
       setWalletInfo(null)
+      return null
     } finally {
       setIsConnectingWallet(false)
     }
@@ -126,10 +133,10 @@ export default function AgentCartPage() {
     try {
       setIsProcessing(true)
 
-      // まずウォレット情報を取得
-      await fetchWalletInfo()
+      // まずウォレット情報を取得（返り値を使用）
+      const currentWalletInfo = await fetchWalletInfo()
 
-      if (!walletInfo) {
+      if (!currentWalletInfo) {
         alert(t({
           JP: 'MetaMaskの接続に失敗しました。MetaMaskがインストールされていることを確認してください。',
           EN: 'Failed to connect MetaMask. Please ensure MetaMask is installed.'
@@ -175,8 +182,10 @@ export default function AgentCartPage() {
       }
 
       console.log('📦 Order Info:', newOrderInfo)
-      console.log('💼 Wallet Info:', walletInfo)
+      console.log('💼 Wallet Info:', currentWalletInfo)
 
+      // 最新のウォレット情報を保存
+      setCurrentConnectedWallet(currentWalletInfo)
       setOrderInfo(newOrderInfo)
       setShowCryptoModal(true)
     } catch (error) {
@@ -567,7 +576,7 @@ export default function AgentCartPage() {
             isOpen={showCryptoModal}
             onClose={() => setShowCryptoModal(false)}
             orderInfo={orderInfo}
-            connectedWallet={walletInfo}
+            connectedWallet={currentConnectedWallet}
           />
         )}
     </>
