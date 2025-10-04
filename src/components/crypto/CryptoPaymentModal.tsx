@@ -3,6 +3,17 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 
+// MetaMask型定義
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+      on?: (event: string, callback: (...args: unknown[]) => void) => void
+      removeListener?: (event: string, callback: (...args: unknown[]) => void) => void
+    }
+  }
+}
+
 interface CryptoPaymentModalProps {
   isOpen: boolean
   onClose: () => void
@@ -17,6 +28,11 @@ interface CryptoPaymentModalProps {
       price: string
     }>
   }
+  connectedWallet?: {
+    address: string
+    balance: string
+    network: string
+  } | null
 }
 
 interface PaymentWallet {
@@ -29,7 +45,7 @@ interface PaymentWallet {
   draftOrderId?: string // Shopifyドラフト注文ID
 }
 
-export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: CryptoPaymentModalProps) {
+export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connectedWallet }: CryptoPaymentModalProps) {
   const { t } = useLanguage()
   const [paymentWallet, setPaymentWallet] = useState<PaymentWallet | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -101,6 +117,8 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       console.log('📊 レスポンスステータス:', response.status)
 
       if (result.success) {
+        console.log('💰 ウォレット生成結果:', result.data)
+        console.log('💰 totalAmount:', result.data.totalAmount)
         setPaymentWallet(result.data)
         startPaymentMonitoring(result.data)
         // 顧客の残高を取得
@@ -312,17 +330,27 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
   // ウォレット情報を取得
   const fetchWalletInfo = async () => {
     try {
+      console.log('🔍 MetaMask接続状態を確認中...')
+      
       // MetaMaskが利用可能かチェック
       if (typeof window !== 'undefined' && window.ethereum) {
+        console.log('✅ MetaMaskが検出されました')
+        
         // まずSepoliaに接続
         const connected = await connectToSepolia()
         if (!connected) {
+          console.log('❌ Sepoliaネットワークに接続できませんでした')
           return
         }
+        console.log('✅ Sepoliaネットワークに接続しました')
 
         const accounts = await window.ethereum.request({ method: 'eth_accounts' })
+        console.log('📋 アカウント一覧:', accounts)
+        
         if (accounts.length > 0) {
           const address = accounts[0]
+          console.log('💰 残高を取得中...', address)
+          
           const balance = await window.ethereum.request({
             method: 'eth_getBalance',
             params: [address, 'latest']
@@ -330,16 +358,22 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
           
           // weiをETHに変換
           const balanceInEth = (parseInt(balance, 16) / Math.pow(10, 18)).toFixed(6)
+          console.log('💰 残高:', balanceInEth, 'SepoliaETH')
           
           setWalletInfo({
             address,
             balance: balanceInEth,
             network: 'Sepolia Testnet'
           })
+        } else {
+          console.log('⚠️ MetaMaskにアカウントが接続されていません')
         }
+      } else {
+        console.log('❌ MetaMaskが検出されませんでした')
+        console.log('window.ethereum:', typeof window !== 'undefined' ? window.ethereum : 'undefined')
       }
     } catch (err) {
-      console.error('Error fetching wallet info:', err)
+      console.error('❌ ウォレット情報取得エラー:', err)
     }
   }
 
@@ -369,6 +403,10 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       // 1. ウォレット生成（draftOrderIdを含むAPIを使用）
       console.log('📝 支払い用ウォレットを生成中...')
       console.log('Order Info:', orderInfo) // デバッグログ追加
+
+      // ETH換算の金額を計算（仮想通貨決済用）
+      const ethAmount = parseFloat(orderInfo.totalAmount)
+
       const response = await fetch('/api/crypto/generate-address', {
         method: 'POST',
         headers: {
@@ -376,7 +414,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
         },
         body: JSON.stringify({
           orderId: orderInfo.orderId, // 必須パラメータを追加
-          amount: parseFloat(orderInfo.totalAmount),
+          amount: ethAmount,
           currency: orderInfo.currency || 'SepoliaETH',
           customerEmail: 'crypto-payment@example.com',
           lineItems: orderInfo.items.map(item => ({
@@ -447,42 +485,73 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       // 2. 自動送金
       console.log('💰 自動送金開始...')
       const amountToSend = walletData.totalAmount
+      console.log('💰 送金金額:', amountToSend, typeof amountToSend)
+
+      // MetaMaskが利用可能か確認
+      if (typeof window.ethereum === 'undefined') {
+        throw new Error('MetaMaskがインストールされていません')
+      }
 
       // SepoliaETHをWeiに変換
-      const amountInWei = (parseFloat(amountToSend) * Math.pow(10, 18)).toString(16)
+      const amountFloat = parseFloat(amountToSend)
+      console.log('💰 金額(float):', amountFloat)
+
+      if (isNaN(amountFloat) || amountFloat <= 0) {
+        throw new Error(`無効な金額: ${amountToSend}`)
+      }
+
+      const amountInWei = Math.floor(amountFloat * Math.pow(10, 18))
+      const amountInWeiHex = '0x' + amountInWei.toString(16)
+
+      console.log('💰 金額変換:', {
+        original: amountToSend,
+        float: amountFloat,
+        wei: amountInWei,
+        hex: amountInWeiHex
+      })
 
       console.log('MetaMask SepoliaETH送金開始:', {
         to: walletData.walletAddress,
         amount: amountToSend,
-        amountInWei: `0x${amountInWei}`
+        amountInWei: amountInWeiHex
       })
 
       // MetaMaskでトランザクションを送信
-      const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: walletInfo.address,
-          to: walletData.walletAddress,
-          value: `0x${amountInWei}`,
-          gas: '0x5208', // 21000 gas
-        }],
-      })
+      console.log('🚀 MetaMaskトランザクション送信開始...')
+      const txParams = {
+        from: walletInfo.address,
+        to: walletData.walletAddress,
+        value: amountInWeiHex,
+        gas: '0x5208', // 21000 gas
+      }
 
-      console.log('✅ MetaMask SepoliaETH送金完了:', txHash)
+      console.log('📤 送信パラメータ:', txParams)
 
-      // 送金完了を通知
-      setTransferStatus({
-        isTransferring: false,
-        isTransferred: true,
-        transactionHash: txHash
-      })
+      try {
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [txParams],
+        })
 
-      // 3. 支払い監視を開始
-      console.log('👀 支払い監視開始...')
-      startPaymentMonitoring(walletData)
+        console.log('✅ MetaMask SepoliaETH送金完了:', txHash)
 
-      // 顧客の残高を取得
-      fetchCustomerBalance(walletData.walletAddress)
+        // 送金完了を通知
+        setTransferStatus({
+          isTransferring: false,
+          isTransferred: true,
+          transactionHash: txHash
+        })
+
+        // 3. 支払い監視を開始
+        console.log('👀 支払い監視開始...')
+        startPaymentMonitoring(walletData)
+
+        // 顧客の残高を取得
+        fetchCustomerBalance(walletData.walletAddress)
+      } catch (txError) {
+        console.error('❌ MetaMaskトランザクションエラー:', txError)
+        throw new Error(`MetaMask送金失敗: ${txError instanceof Error ? txError.message : 'Unknown error'}`)
+      }
 
     } catch (err: unknown) {
       console.error('❌ ワンクリック決済エラー:', err)
@@ -517,6 +586,13 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       }
       // 送金金額を決定（手動入力または自動計算）
       const amountToSend = useManualAmount ? manualAmount : paymentWallet.totalAmount
+      
+      console.log('💰 送金金額決定:', {
+        useManualAmount,
+        manualAmount,
+        paymentWalletTotalAmount: paymentWallet.totalAmount,
+        amountToSend
+      })
       
       // SepoliaETHをWeiに変換
       const amountInWei = (parseFloat(amountToSend) * Math.pow(10, 18)).toString(16)
@@ -697,10 +773,17 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
       setManualAmount('')
       setUseManualAmount(false)
       console.log('🧹 Cleared previous wallet data on modal open')
-      
-      fetchWalletInfo()
+
+      // connectedWalletが渡されている場合はそれを使用
+      if (connectedWallet) {
+        console.log('✅ 接続済みウォレットを使用:', connectedWallet)
+        setWalletInfo(connectedWallet)
+      } else {
+        // 渡されていない場合は自分で取得
+        fetchWalletInfo()
+      }
     }
-  }, [isOpen]) // fetchWalletInfo is stable as it doesn't use any props/state
+  }, [isOpen, connectedWallet]) // connectedWalletも依存配列に追加
 
   // 手動入力モードで金額が変更された時の処理
   useEffect(() => {
@@ -781,24 +864,64 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
           </div>
         )}
 
-        {/* ウォレット情報 */}
+        {/* ウォレット情報 - 大きく目立つように表示 */}
         {walletInfo && (
-          <div className="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-blue-400 mb-3">
-              {t({ JP: '接続中のウォレット', EN: 'Connected Wallet' })}
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-300">{t({ JP: 'アドレス', EN: 'Address' })}:</span>
-                <span className="text-blue-400 font-mono text-xs break-all">{walletInfo.address}</span>
+          <div className="mb-6 bg-gradient-to-r from-blue-500/20 to-green-500/20 border-2 border-blue-400/50 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mr-4">
+                <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                </svg>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">{t({ JP: '残高', EN: 'Balance' })}:</span>
-                <span className="text-blue-400 font-bold">{walletInfo.balance} SepoliaETH</span>
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  {t({ JP: '接続中のウォレット', EN: 'Connected Wallet' })}
+                </h3>
+                <div className="flex items-center mt-1">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></div>
+                  <span className="text-green-400 text-sm font-semibold">
+                    {t({ JP: '接続済み', EN: 'Connected' })}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">{t({ JP: 'ネットワーク', EN: 'Network' })}:</span>
-                <span className="text-blue-400">{walletInfo.network}</span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="bg-gray-800/50 rounded-lg p-3">
+                <label className="text-xs text-gray-400 block mb-1">
+                  {t({ JP: 'ウォレットアドレス', EN: 'Wallet Address' })}
+                </label>
+                <div className="flex items-center justify-between">
+                  <span className="text-blue-300 font-mono text-sm">
+                    {walletInfo.address.slice(0, 6)}...{walletInfo.address.slice(-4)}
+                  </span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(walletInfo.address)}
+                    className="text-blue-400 hover:text-blue-300 text-xs underline"
+                  >
+                    {t({ JP: 'コピー', EN: 'Copy' })}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-800/50 rounded-lg p-3">
+                  <label className="text-xs text-gray-400 block mb-1">
+                    {t({ JP: '残高', EN: 'Balance' })}
+                  </label>
+                  <div className="text-green-400 font-bold text-lg">
+                    {walletInfo.balance} ETH
+                  </div>
+                </div>
+
+                <div className="bg-gray-800/50 rounded-lg p-3">
+                  <label className="text-xs text-gray-400 block mb-1">
+                    {t({ JP: 'ネットワーク', EN: 'Network' })}
+                  </label>
+                  <div className="text-blue-300 font-semibold text-sm">
+                    {walletInfo.network}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -837,13 +960,13 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
           </div>
         )}
 
-        {/* ワンクリック決済ボタン */}
+        {/* Generate Payment Wallet & MetaMask Auto-payment Button */}
         {!paymentWallet && walletInfo && (
           <div className="mb-6">
             <button
               onClick={oneClickPayment}
               disabled={isOneClickProcessing}
-              className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:transform-none"
+              className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:transform-none shadow-lg"
             >
               {isOneClickProcessing ? (
                 <div className="flex items-center justify-center">
@@ -851,23 +974,26 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo }: Crypt
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  {t({ JP: 'ワンクリック決済中...', EN: 'One-Click Payment Processing...' })}
+                  {t({ JP: 'MetaMask決済処理中...', EN: 'Processing MetaMask Payment...' })}
                 </div>
               ) : (
                 <div className="flex items-center justify-center">
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
+                  <svg className="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                   </svg>
-                  {t({ JP: 'ワンクリック決済', EN: 'One-Click Payment' })}
+                  {t({ JP: 'Generate Payment Wallet', EN: 'Generate Payment Wallet' })}
                 </div>
               )}
             </button>
-            <div className="mt-2 text-center">
-              <p className="text-xs text-gray-400">
-                {t({ JP: 'ウォレット生成 + 自動送金 + 支払い監視を一括実行', EN: 'Generate wallet + Auto transfer + Payment monitoring in one click' })}
+            <div className="mt-3 text-center space-y-1">
+              <p className="text-sm text-green-400 font-semibold">
+                ⚡ {t({ JP: 'MetaMaskが自動起動して支払金額が入力されます', EN: 'MetaMask will auto-launch with payment amount filled' })}
               </p>
-              <p className="text-xs text-orange-400 font-semibold mt-1">
-                🧪 {t({ JP: 'Sepoliaテストネットで実行', EN: 'Executes on Sepolia Testnet' })}
+              <p className="text-xs text-gray-400">
+                {t({ JP: 'ウォレット生成 → MetaMask起動 → 自動送金 → 支払い監視', EN: 'Wallet Generation → MetaMask Launch → Auto Transfer → Payment Monitoring' })}
+              </p>
+              <p className="text-xs text-orange-400 font-semibold">
+                🧪 {t({ JP: 'Sepoliaテストネット', EN: 'Sepolia Testnet' })}
               </p>
             </div>
           </div>

@@ -69,7 +69,17 @@ export async function middleware(request: NextRequest) {
     }
 
     // 代理店が存在する場合は続行
-    return NextResponse.next();
+    // 代理店コードをCookieに設定
+    const nextResponse = NextResponse.next();
+    nextResponse.cookies.set('tenant', potentialAgentCode, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7日間
+      path: '/',
+    });
+    
+    return nextResponse;
   } catch (error) {
     console.error('Agent validation error:', error);
     // エラーが発生した場合も続行（フォールバック）

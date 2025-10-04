@@ -1,29 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run dev:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm install:*)",
-      "Bash(npm uninstall:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git pull:*)",
-      "Bash(echo:*)",
-      "Bash(git checkout:*)",
-      "Bash(git push:*)",
-      "Bash(npx vercel:*)",
-      "Bash(cat:*)",
-      "Bash(git remote add:*)",
-      "Bash(git remote remove:*)",
-      "Bash(git config:*)",
-      "Bash(ssh:*)",
-      "Read(//c/Users/team4/.ssh/**)",
-      "Bash(git remote set-url:*)",
-      "Bash(npm cache clean:*)",
-      "Bash(taskkill:*)",
-      "Bash(netstat:*)",
-      "Bash(findstr:*)",
-      "Bash(rm:*)"
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

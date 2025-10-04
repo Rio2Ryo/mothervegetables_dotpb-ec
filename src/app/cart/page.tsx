@@ -7,10 +7,21 @@ import CryptoPaymentModal from '@/components/crypto/CryptoPaymentModal'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePriceGuarantee } from '@/contexts/PriceGuaranteeContext'
 import PriceGuaranteeStatus from '@/components/PriceGuaranteeStatus'
 import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
+
+// MetaMask型定義
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+      on?: (event: string, callback: (...args: unknown[]) => void) => void
+      removeListener?: (event: string, callback: (...args: unknown[]) => void) => void
+    }
+  }
+}
 
 export default function CartPage() {
   const { state, cart, language, handleCreditCardCheckout } = useMetaMaskShopifyCart()
@@ -20,35 +31,138 @@ export default function CartPage() {
   const [showCryptoModal, setShowCryptoModal] = useState(false)
   const [orderInfo, setOrderInfo] = useState<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: {id: string, name: string, quantity: number, price: string}[]} | null>(null)
   const { priceGuarantees, isPriceValid, resetAllPriceGuarantees, getRemainingTime } = usePriceGuarantee()
-  
+  const [walletInfo, setWalletInfo] = useState<{
+    address: string
+    balance: string
+    network: string
+  } | null>(null)
+  const [isConnectingWallet, setIsConnectingWallet] = useState(false)
+
+  // MetaMaskウォレット情報を取得
+  const fetchWalletInfo = async () => {
+    try {
+      setIsConnectingWallet(true)
+      console.log('🔍 MetaMask接続状態を確認中...')
+
+      // MetaMaskが利用可能かチェック
+      if (typeof window !== 'undefined' && window.ethereum) {
+        console.log('✅ MetaMaskが検出されました')
+
+        // アカウント取得をリクエスト（ユーザーに接続を促す）
+        const accounts = await window.ethereum.request({
+          method: 'eth_requestAccounts'
+        }) as string[]
+
+        console.log('📋 アカウント一覧:', accounts)
+
+        if (accounts.length > 0) {
+          const address = accounts[0]
+          console.log('💰 残高を取得中...', address)
+
+          const balance = await window.ethereum.request({
+            method: 'eth_getBalance',
+            params: [address, 'latest']
+          }) as string
+
+          // weiをETHに変換
+          const balanceInEth = (parseInt(balance, 16) / Math.pow(10, 18)).toFixed(6)
+          console.log('💰 残高:', balanceInEth, 'ETH')
+
+          // ネットワーク情報を取得
+          const chainId = await window.ethereum.request({
+            method: 'eth_chainId'
+          }) as string
+
+          const networkName = chainId === '0xaa36a7' ? 'Sepolia Testnet' :
+                             chainId === '0x1' ? 'Ethereum Mainnet' :
+                             `Network ${chainId}`
+
+          setWalletInfo({
+            address,
+            balance: balanceInEth,
+            network: networkName
+          })
+
+          console.log('✅ ウォレット情報取得完了')
+        } else {
+          console.log('⚠️ MetaMaskにアカウントが接続されていません')
+          setWalletInfo(null)
+        }
+      } else {
+        console.log('❌ MetaMaskが検出されませんでした')
+        setWalletInfo(null)
+      }
+    } catch (err) {
+      console.error('❌ ウォレット情報取得エラー:', err)
+      setWalletInfo(null)
+    } finally {
+      setIsConnectingWallet(false)
+    }
+  }
+
   const handleCryptoPayment = async () => {
     try {
       setIsProcessing(true)
-      
+
+      // まずウォレット情報を取得
+      await fetchWalletInfo()
+
+      if (!walletInfo) {
+        alert(t({
+          JP: 'MetaMaskの接続に失敗しました。MetaMaskがインストールされていることを確認してください。',
+          EN: 'Failed to connect MetaMask. Please ensure MetaMask is installed.'
+        }))
+        setIsProcessing(false)
+        return
+      }
+
       // OrderIDとPayment Addressを必ず同じタイミングで生成
       const cryptoPaymentData = await generateCryptoPayment()
-      
+
+      console.log('🎯 Crypto Payment Data:', cryptoPaymentData)
+
+      // ETH換算の金額を計算（JPYからETHへの変換レート: 1 ETH = 500,000 JPY）
+      // テスト環境では小額になるように調整
+      const jpyToEthRate = 500000 // 1 ETH = 500,000 JPY
+      const totalPriceJPY = cart.state.totalPrice
+      const totalPriceETH = (totalPriceJPY / jpyToEthRate).toFixed(6)
+
+      // テスト用: 最低金額を0.001 ETH、最大を0.01 ETHに制限
+      const minEth = 0.001
+      const maxEth = 0.01
+      const clampedETH = Math.max(minEth, Math.min(maxEth, parseFloat(totalPriceETH))).toFixed(6)
+
+      console.log('💰 Price Conversion:', {
+        jpy: totalPriceJPY,
+        eth: totalPriceETH,
+        clampedETH: clampedETH,
+        rate: jpyToEthRate
+      })
+
       // 注文情報を準備（生成されたOrderIDを使用）
       const newOrderInfo = {
         orderId: cryptoPaymentData.orderId, // 必ず同時生成されたOrderIDを使用
-        totalAmount: cryptoPaymentData.totalAmount,
-        currency: cryptoPaymentData.currency,
-        walletAddress: cryptoPaymentData.walletAddress,
-        items: cryptoPaymentData.items.map(item => ({
-          id: item.id,
+        totalAmount: clampedETH, // ETH換算金額を使用（テスト用に制限）
+        currency: 'SepoliaETH',
+        walletAddress: cryptoPaymentData.data?.address || cryptoPaymentData.walletAddress,
+        items: cart.state.items.map(item => ({
+          id: item.variantId,
           name: item.title,
           quantity: item.quantity,
           price: item.price
         }))
       }
-      
+
+      console.log('📦 Order Info:', newOrderInfo)
+      console.log('💼 Wallet Info:', walletInfo)
+
       setOrderInfo(newOrderInfo)
       setShowCryptoModal(true)
     } catch (error) {
       console.error('Crypto payment initialization error:', error)
-      alert(t({ 
-        JP: '暗号通貨決済の初期化でエラーが発生しました', 
-        EN: 'Error occurred during crypto payment initialization' 
+      alert(t({
+        JP: '暗号通貨決済の初期化でエラーが発生しました',
+        EN: 'Error occurred during crypto payment initialization'
       }))
     } finally {
       setIsProcessing(false)
@@ -339,6 +453,7 @@ export default function CartPage() {
           isOpen={showCryptoModal}
           onClose={() => setShowCryptoModal(false)}
           orderInfo={orderInfo}
+          connectedWallet={walletInfo}
         />
       )}
     </>

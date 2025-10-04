@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useAccount, useConnect, useDisconnect, useSignMessage } from 'wagmi'
 import { injected } from 'wagmi/connectors'
+import { forceDisconnectMetaMask } from '@/lib/metamask-utils'
 
 interface MetaMaskAuthContextType {
   address: string | undefined
@@ -44,11 +45,33 @@ export function MetaMaskAuthProvider({ children }: { children: React.ReactNode }
 
   const handleDisconnect = useCallback(async () => {
     try {
-      disconnect()
-      console.log('Disconnected from MetaMask')
+      setError(null)
+      setIsConnecting(true)
+      
+      // 方法1: wagmiの標準的な切断
+      try {
+        await disconnect()
+        console.log('Disconnected from MetaMask via wagmi')
+        return
+      } catch (wagmiError) {
+        console.warn('Wagmi disconnect failed:', wagmiError)
+      }
+      
+      // 方法2: 強制的な状態リセット
+      console.log('Attempting force disconnect...')
+      await forceDisconnectMetaMask()
+      return
+      
     } catch (err) {
-      console.error('Failed to disconnect:', err)
+      console.error('Disconnect failed:', err)
       setError(err as Error)
+      
+      // 最終手段: ページリロード
+      if (confirm('切断に失敗しました。ページをリロードして状態をリセットしますか？')) {
+        window.location.reload()
+      }
+    } finally {
+      setIsConnecting(false)
     }
   }, [disconnect])
 
@@ -66,6 +89,8 @@ export function MetaMaskAuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (isConnected && address) {
       console.log('Wallet connected:', address)
+    } else if (!isConnected) {
+      console.log('Wallet disconnected')
     }
   }, [isConnected, address])
 

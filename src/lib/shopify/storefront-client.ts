@@ -121,7 +121,7 @@ export async function createCustomerAccessToken(
   }
 }
 
-// 顧客情報を取得
+// 顧客情報を取得（アクセストークン使用）
 export async function getCustomer(
   customerAccessToken: string
 ): Promise<{
@@ -166,6 +166,80 @@ export async function getCustomer(
     };
   } catch (error) {
     console.error('Error getting customer:', error);
+    throw error;
+  }
+}
+
+// 顧客を作成
+export async function createCustomer(
+  input: CustomerCreateInput
+): Promise<{
+  customer?: Customer;
+  errors?: CustomerUserError[];
+}> {
+  try {
+    const mutation = `
+      mutation customerCreate($input: CustomerCreateInput!) {
+        customerCreate(input: $input) {
+          customer {
+            id
+            email
+            firstName
+            lastName
+            phone
+            acceptsMarketing
+            createdAt
+            updatedAt
+          }
+          customerUserErrors {
+            code
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        password: input.password,
+        phone: input.phone,
+        acceptsMarketing: input.acceptsMarketing,
+      },
+    };
+
+    console.log('Creating customer with variables:', variables);
+
+    const response = await shopifyStorefront.request(mutation, variables);
+    const result = response.customerCreate;
+
+    console.log('Customer creation response:', result);
+
+    if (result.customerUserErrors && result.customerUserErrors.length > 0) {
+      console.error('Customer creation errors:', result.customerUserErrors);
+      return {
+        errors: result.customerUserErrors,
+      };
+    }
+
+    if (!result.customer) {
+      return {
+        errors: [{
+          code: 'CUSTOMER_CREATION_FAILED',
+          field: ['general'],
+          message: '顧客の作成に失敗しました',
+        }],
+      };
+    }
+
+    return {
+      customer: result.customer,
+    };
+  } catch (error) {
+    console.error('Error creating customer:', error);
     throw error;
   }
 }

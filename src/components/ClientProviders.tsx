@@ -14,6 +14,7 @@ import { MetaMaskAuthProvider } from '@/contexts/MetaMaskAuthContext'
 import { MetaMaskShopifyCartProvider } from '@/contexts/MetaMaskShopifyCartContext'
 import { PriceGuaranteeProvider } from '@/contexts/PriceGuaranteeContext'
 import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
+import { SessionProvider } from 'next-auth/react'
 
 const queryClient = new QueryClient()
 
@@ -23,28 +24,30 @@ interface ClientProvidersProps {
 
 export function ClientProviders({ children }: ClientProvidersProps) {
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <ShopProvider>
-            <MetaMaskAuthProvider>
-              <ShopifyApolloProvider>
-                <CartProvider>
-                  <MetaMaskShopifyCartProvider>
-                    <PriceGuaranteeProvider>
-                      <ExpiredItemCleanup />
-                      <AuthInitializer />
-                      <AgentDetector />
-                      <AuthModal />
-                      {children}
-                    </PriceGuaranteeProvider>
-                  </MetaMaskShopifyCartProvider>
-                </CartProvider>
-              </ShopifyApolloProvider>
-            </MetaMaskAuthProvider>
-          </ShopProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <SessionProvider>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <ShopProvider>
+              <MetaMaskAuthProvider>
+                <ShopifyApolloProvider>
+                  <CartProvider>
+                    <MetaMaskShopifyCartProvider>
+                      <PriceGuaranteeProvider>
+                        <ExpiredItemCleanup />
+                        <AuthInitializer />
+                        <AgentDetector />
+                        <AuthModal />
+                        {children}
+                      </PriceGuaranteeProvider>
+                    </MetaMaskShopifyCartProvider>
+                  </CartProvider>
+                </ShopifyApolloProvider>
+              </MetaMaskAuthProvider>
+            </ShopProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </SessionProvider>
   )
 }
