@@ -168,12 +168,45 @@ export class GraphQLOrderManager {
       value: 'Japan'
     });
 
-    const variables = {
+    const variables: {
+      input: {
+        lineItems: Array<{variantId: string, quantity: number, originalUnitPrice: string}>
+        tags: string
+        email: string
+        customAttributes: Array<{key: string, value: string}>
+        shippingAddress?: {
+          firstName?: string
+          lastName?: string
+          address1?: string
+          address2?: string
+          city?: string
+          province?: string
+          zip?: string
+          country?: string
+          phone?: string
+        }
+      }
+    } = {
       input: {
         lineItems: lineItems,
         tags: `crypto-payment,wallet-${orderData.walletAddress || 'unknown'},order-${orderData.orderId || 'unknown'}`,
         email: orderData.customerEmail || 'crypto-payment@example.com',
         customAttributes: attributes
+      }
+    }
+
+    // 配送先住所が提供されている場合は追加
+    if (orderData.shippingAddress) {
+      variables.input.shippingAddress = {
+        firstName: orderData.shippingAddress.firstName as string,
+        lastName: orderData.shippingAddress.lastName as string,
+        address1: orderData.shippingAddress.address1 as string,
+        address2: orderData.shippingAddress.address2 as string,
+        city: orderData.shippingAddress.city as string,
+        province: orderData.shippingAddress.province as string,
+        zip: orderData.shippingAddress.zip as string,
+        country: orderData.shippingAddress.country as string,
+        phone: orderData.shippingAddress.phone as string
       }
     }
 

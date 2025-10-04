@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/stores/authStore'
 
 // MetaMask型定義
 declare global {
@@ -52,6 +53,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
   const { t } = useLanguage()
   const { clearCart } = useCart()
   const router = useRouter()
+  const { customer, isAuthenticated } = useAuthStore()
   const [paymentWallet, setPaymentWallet] = useState<PaymentWallet | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isMonitoring, setIsMonitoring] = useState(false)
@@ -81,6 +83,69 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
   const [manualAmount, setManualAmount] = useState<string>('')
   const [useManualAmount, setUseManualAmount] = useState<boolean>(false)
   const [isOneClickProcessing, setIsOneClickProcessing] = useState<boolean>(false)
+
+  // 配送先情報
+  const [shippingAddress, setShippingAddress] = useState({
+    firstName: '',
+    lastName: '',
+    address1: '',
+    address2: '',
+    city: '',
+    province: '',
+    zip: '',
+    country: 'JP',
+    phone: ''
+  })
+  const [isLoadingCustomerData, setIsLoadingCustomerData] = useState(false)
+
+  // Shopify顧客データを取得して住所を自動入力
+  const fetchCustomerAddress = async () => {
+    if (!isAuthenticated || !customer) {
+      console.log('👤 未認証ユーザー - 住所の自動入力をスキップ')
+      return
+    }
+
+    setIsLoadingCustomerData(true)
+    try {
+      console.log('📋 Shopify顧客データを取得中...')
+      const response = await fetch('/api/customer/address')
+
+      if (!response.ok) {
+        console.error('❌ 顧客データ取得エラー:', response.status)
+        return
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.address) {
+        console.log('✅ 顧客住所を取得:', data.address)
+        setShippingAddress({
+          firstName: data.address.firstName || customer.firstName || '',
+          lastName: data.address.lastName || customer.lastName || '',
+          address1: data.address.address1 || '',
+          address2: data.address.address2 || '',
+          city: data.address.city || '',
+          province: data.address.province || '',
+          zip: data.address.zip || '',
+          country: data.address.country || 'JP',
+          phone: data.address.phone || customer.phone || ''
+        })
+      } else if (customer) {
+        // 住所がない場合は名前と電話番号のみ自動入力
+        console.log('ℹ️ 住所なし - 名前と電話番号のみ自動入力')
+        setShippingAddress(prev => ({
+          ...prev,
+          firstName: customer.firstName || '',
+          lastName: customer.lastName || '',
+          phone: customer.phone || ''
+        }))
+      }
+    } catch (error) {
+      console.error('❌ 顧客データ取得エラー:', error)
+    } finally {
+      setIsLoadingCustomerData(false)
+    }
+  }
 
   // 子ウォレットを生成
   const generateWallet = async () => {
@@ -382,6 +447,29 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
     }
   }
 
+  // フォームのバリデーション
+  const validateShippingAddress = () => {
+    const required = ['firstName', 'lastName', 'address1', 'city', 'province', 'zip', 'phone']
+    const missing = required.filter(field => !shippingAddress[field as keyof typeof shippingAddress])
+
+    if (missing.length > 0) {
+      const fieldNames = {
+        firstName: t({ JP: '名', EN: 'First Name' }),
+        lastName: t({ JP: '姓', EN: 'Last Name' }),
+        address1: t({ JP: '番地', EN: 'Address' }),
+        city: t({ JP: '市区町村', EN: 'City' }),
+        province: t({ JP: '都道府県', EN: 'Prefecture' }),
+        zip: t({ JP: '郵便番号', EN: 'Postal Code' }),
+        phone: t({ JP: '電話番号', EN: 'Phone' })
+      }
+      const missingNames = missing.map(f => fieldNames[f as keyof typeof fieldNames]).join(', ')
+      throw new Error(t({
+        JP: `以下の項目を入力してください: ${missingNames}`,
+        EN: `Please fill in: ${missingNames}`
+      }))
+    }
+  }
+
   // ワンクリック決済（ウォレット生成 + 自動送金）
   const oneClickPayment = async () => {
     if (!walletInfo) {
@@ -394,6 +482,9 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
 
     try {
       console.log('🚀 ワンクリック決済開始...')
+
+      // 住所のバリデーション
+      validateShippingAddress()
 
       // 送金前にSepoliaネットワークを確認
       const isSepolia = await checkNetwork()
@@ -421,12 +512,23 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
           orderId: orderInfo.orderId, // 必須パラメータを追加
           amount: ethAmount,
           currency: orderInfo.currency || 'SepoliaETH',
-          customerEmail: 'crypto-payment@example.com',
+          customerEmail: customer?.email || 'crypto-payment@example.com',
           lineItems: orderInfo.items.map(item => ({
             variantId: item.id,
             quantity: item.quantity,
             price: item.price
-          }))
+          })),
+          shippingAddress: {
+            firstName: shippingAddress.firstName,
+            lastName: shippingAddress.lastName,
+            address1: shippingAddress.address1,
+            address2: shippingAddress.address2,
+            city: shippingAddress.city,
+            province: shippingAddress.province,
+            zip: shippingAddress.zip,
+            country: shippingAddress.country,
+            phone: shippingAddress.phone
+          }
         }),
       })
 
@@ -787,6 +889,9 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
         // 渡されていない場合は自分で取得
         fetchWalletInfo()
       }
+
+      // Shopify顧客データを取得して住所を自動入力
+      fetchCustomerAddress()
     }
   }, [isOpen, connectedWallet]) // connectedWalletも依存配列に追加
 
@@ -971,6 +1076,131 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
             <div className="flex justify-between">
               <span className="text-gray-300">{t({ JP: '商品数', EN: 'Items' })}:</span>
               <span className="text-white">{orderInfo.items.length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 配送先住所フォーム */}
+        <div className="mb-6 bg-gray-800/50 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-white">
+              {t({ JP: '配送先情報', EN: 'Shipping Information' })}
+            </h3>
+            {isLoadingCustomerData && (
+              <div className="flex items-center text-sm text-blue-400">
+                <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {t({ JP: '読み込み中...', EN: 'Loading...' })}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-gray-300 block mb-1">
+                  {t({ JP: '姓', EN: 'Last Name' })} <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={shippingAddress.lastName}
+                  onChange={(e) => setShippingAddress({ ...shippingAddress, lastName: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                  placeholder={t({ JP: '山田', EN: 'Yamada' })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-300 block mb-1">
+                  {t({ JP: '名', EN: 'First Name' })} <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={shippingAddress.firstName}
+                  onChange={(e) => setShippingAddress({ ...shippingAddress, firstName: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                  placeholder={t({ JP: '太郎', EN: 'Taro' })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                {t({ JP: '郵便番号', EN: 'Postal Code' })} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={shippingAddress.zip}
+                onChange={(e) => setShippingAddress({ ...shippingAddress, zip: e.target.value })}
+                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                placeholder="123-4567"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                {t({ JP: '都道府県', EN: 'Prefecture/State' })} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={shippingAddress.province}
+                onChange={(e) => setShippingAddress({ ...shippingAddress, province: e.target.value })}
+                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                placeholder={t({ JP: '東京都', EN: 'Tokyo' })}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                {t({ JP: '市区町村', EN: 'City' })} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={shippingAddress.city}
+                onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                placeholder={t({ JP: '渋谷区', EN: 'Shibuya-ku' })}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                {t({ JP: '番地', EN: 'Address Line 1' })} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={shippingAddress.address1}
+                onChange={(e) => setShippingAddress({ ...shippingAddress, address1: e.target.value })}
+                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                placeholder={t({ JP: '1-2-3', EN: '1-2-3' })}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                {t({ JP: '建物名・部屋番号', EN: 'Address Line 2' })}
+              </label>
+              <input
+                type="text"
+                value={shippingAddress.address2}
+                onChange={(e) => setShippingAddress({ ...shippingAddress, address2: e.target.value })}
+                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                placeholder={t({ JP: 'マンション名 101号室', EN: 'Apt 101' })}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                {t({ JP: '電話番号', EN: 'Phone Number' })} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="tel"
+                value={shippingAddress.phone}
+                onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
+                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                placeholder="090-1234-5678"
+              />
             </div>
           </div>
         </div>

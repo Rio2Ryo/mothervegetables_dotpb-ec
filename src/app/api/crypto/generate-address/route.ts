@@ -7,8 +7,8 @@ export async function POST(request: NextRequest) {
     console.log('=== Crypto Payment API Called ===')
     const body = await request.json()
     console.log('Request body:', body)
-    
-    const { orderId, amount, currency, lineItems, customerEmail, walletAddress } = body
+
+    const { orderId, amount, currency, lineItems, customerEmail, walletAddress, shippingAddress } = body
 
     if (!orderId || !amount || !lineItems) {
       console.error('Missing required parameters:', { orderId: !!orderId, amount: !!amount, lineItems: !!lineItems })
@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
         totalPrice: amount.toString(),
         customerEmail,
         walletAddress,
-        orderId
+        orderId,
+        shippingAddress
       })
       console.log('✅ Shopify draft order created:', draftOrder.draftOrder.id)
     } catch (shopifyError) {
