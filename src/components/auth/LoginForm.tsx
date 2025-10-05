@@ -10,14 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff } from 'lucide-react';
-import { GoogleAuthButton } from './GoogleAuthButton';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
 }
 
 export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
-  const { login, googleLogin, loading, error, setError } = useAuthStore();
+  const { login, loading, error, setError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -96,20 +95,6 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           {loading ? 'ログイン中...' : 'ログイン'}
         </Button>
       </form>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">または</span>
-        </div>
-      </div>
-
-      <GoogleAuthButton
-        onSuccess={googleLogin}
-        onError={setError}
-      />
 
       <div className="text-center">
         <Button

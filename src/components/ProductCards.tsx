@@ -52,14 +52,14 @@ function ProductCard({ product }: ProductCardProps) {
     try {
       // カート内の全商品の価格保証時間をリセット（価格は維持）
       resetAllPriceGuaranteeTimes()
-      
+
       // イーサ価格を確定（カート追加時点で価格をロック）
-      const currentEthPrice = 0.0010 + Math.random() * (0.0019 - 0.0010) // 現在の価格を取得
+      const currentEthPrice = 0.0001 + Math.random() * (0.00019 - 0.0001) // 0.0001-0.00019の範囲
       const usdPrice = parseFloat(firstVariant.price.amount)
-      
-      // 価格保証システムに登録（1分間保証）
-      lockPriceGuarantee(product.id, currentEthPrice, usdPrice)
-      lockPriceForProduct(product.id, currentEthPrice)
+
+      // 価格保証システムに登録（variantIdで保存）
+      lockPriceGuarantee(firstVariant.id, currentEthPrice, usdPrice)
+      lockPriceForProduct(firstVariant.id, currentEthPrice)
       
       // 商品追加のアニメーション効果
       addItem(product, firstVariant.id, 1)
@@ -118,16 +118,16 @@ function ProductCard({ product }: ProductCardProps) {
               <div className="text-lg font-bold text-green-400 mb-1">
                 {formatPrice(firstVariant.price.amount, firstVariant.price.currencyCode)}
               </div>
-              <EthPriceDisplay 
-                usdPrice={parseFloat(firstVariant.price.amount)} 
-                productId={product.id}
+              <EthPriceDisplay
+                usdPrice={parseFloat(firstVariant.price.amount)}
+                productId={firstVariant.id}
                 className="text-sm"
               />
-              
+
               {/* 価格保証状況 */}
-              {isPriceValid(product.id) && (
+              {isPriceValid(firstVariant.id) && (
                 <div className="mt-2">
-                  <PriceGuaranteeStatus productId={product.id} />
+                  <PriceGuaranteeStatus productId={firstVariant.id} />
                 </div>
               )}
             </div>

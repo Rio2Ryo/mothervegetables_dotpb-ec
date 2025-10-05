@@ -168,6 +168,18 @@ export class GraphQLOrderManager {
       value: 'Japan'
     });
 
+    // メールアドレスが必須
+    if (!orderData.customerEmail) {
+      throw new Error('Customer email is required for draft order creation')
+    }
+
+    console.log('📧 Creating draft order with customer email:', orderData.customerEmail)
+
+    // ウォレットアドレスを短縮（タグは40文字まで）
+    const walletTag = orderData.walletAddress
+      ? `wallet-${orderData.walletAddress.slice(0, 8)}...${orderData.walletAddress.slice(-6)}`
+      : 'wallet-unknown'
+
     const variables: {
       input: {
         lineItems: Array<{variantId: string, quantity: number, originalUnitPrice: string}>
@@ -189,8 +201,8 @@ export class GraphQLOrderManager {
     } = {
       input: {
         lineItems: lineItems,
-        tags: `crypto-payment,wallet-${orderData.walletAddress || 'unknown'},order-${orderData.orderId || 'unknown'}`,
-        email: orderData.customerEmail || 'crypto-payment@example.com',
+        tags: `crypto-payment,${walletTag}`,
+        email: orderData.customerEmail,
         customAttributes: attributes
       }
     }
@@ -211,7 +223,7 @@ export class GraphQLOrderManager {
     }
 
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/graphql.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/graphql.json`,
       {
         method: 'POST',
         headers: {
@@ -312,7 +324,7 @@ export class GraphQLOrderManager {
       }
 
       await fetch(
-        `https://${this.storeDomain}/admin/api/2024-01/graphql.json`,
+        `https://${this.storeDomain}/admin/api/2024-10/graphql.json`,
         {
           method: 'POST',
           headers: {
@@ -338,7 +350,6 @@ export class GraphQLOrderManager {
             order {
               id
               name
-              email
               totalPriceSet {
                 shopMoney {
                   amount
@@ -361,7 +372,7 @@ export class GraphQLOrderManager {
     }
 
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/graphql.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/graphql.json`,
       {
         method: 'POST',
         headers: {
@@ -387,7 +398,44 @@ export class GraphQLOrderManager {
     }
 
     if (result.data.draftOrderComplete.userErrors.length > 0) {
-      throw new Error(`Draft order completion errors: ${JSON.stringify(result.data.draftOrderComplete.userErrors)}`)
+      const errors = result.data.draftOrderComplete.userErrors
+
+      // 同時実行エラーの場合は少し待ってリトライ
+      const isProcessingError = errors.some((err: { message: string }) =>
+        err.message.includes('Another staff member is processing')
+      )
+
+      if (isProcessingError) {
+        console.log('⏳ Draft order is being processed by another request, waiting 2 seconds...')
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        // リトライ
+        console.log('🔄 Retrying draft order completion...')
+        const retryResponse = await fetch(
+          `https://${this.storeDomain}/admin/api/2024-10/graphql.json`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Shopify-Access-Token': this.adminToken
+            },
+            body: JSON.stringify({
+              query: mutation,
+              variables: variables
+            })
+          }
+        )
+
+        const retryResult = await retryResponse.json()
+
+        if (retryResult.data?.draftOrderComplete?.userErrors?.length > 0) {
+          throw new Error(`Draft order completion errors: ${JSON.stringify(retryResult.data.draftOrderComplete.userErrors)}`)
+        }
+
+        return retryResult.data.draftOrderComplete
+      }
+
+      throw new Error(`Draft order completion errors: ${JSON.stringify(errors)}`)
     }
 
     return result.data.draftOrderComplete
@@ -417,7 +465,7 @@ export class GraphQLOrderManager {
     }
 
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/graphql.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/graphql.json`,
       {
         method: 'POST',
         headers: {
@@ -474,7 +522,7 @@ export class GraphQLOrderManager {
     const variables = { id: orderId }
 
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/graphql.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/graphql.json`,
       {
         method: 'POST',
         headers: {
@@ -523,7 +571,7 @@ export class GraphQLOrderManager {
     }
 
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/graphql.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/graphql.json`,
       {
         method: 'POST',
         headers: {

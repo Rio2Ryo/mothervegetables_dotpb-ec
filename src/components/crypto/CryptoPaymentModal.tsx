@@ -1,21 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/CartContext'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
-
-// MetaMask型定義
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
-      on?: (event: string, callback: (...args: unknown[]) => void) => void
-      removeListener?: (event: string, callback: (...args: unknown[]) => void) => void
-    }
-  }
-}
 
 interface CryptoPaymentModalProps {
   isOpen: boolean
@@ -31,6 +20,7 @@ interface CryptoPaymentModalProps {
       price: string
     }>
     agentCode?: string
+    draftOrderId?: string
   }
   connectedWallet?: {
     address: string
@@ -88,6 +78,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
   const [shippingAddress, setShippingAddress] = useState({
     firstName: '',
     lastName: '',
+    email: '',
     address1: '',
     address2: '',
     city: '',
@@ -117,28 +108,36 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
 
       const data = await response.json()
 
-      if (data.success && data.address) {
-        console.log('✅ 顧客住所を取得:', data.address)
-        setShippingAddress({
-          firstName: data.address.firstName || customer.firstName || '',
-          lastName: data.address.lastName || customer.lastName || '',
-          address1: data.address.address1 || '',
-          address2: data.address.address2 || '',
-          city: data.address.city || '',
-          province: data.address.province || '',
-          zip: data.address.zip || '',
-          country: data.address.country || 'JP',
-          phone: data.address.phone || customer.phone || ''
-        })
-      } else if (customer) {
-        // 住所がない場合は名前と電話番号のみ自動入力
-        console.log('ℹ️ 住所なし - 名前と電話番号のみ自動入力')
-        setShippingAddress(prev => ({
-          ...prev,
-          firstName: customer.firstName || '',
-          lastName: customer.lastName || '',
-          phone: customer.phone || ''
-        }))
+      if (data.success) {
+        const apiCustomer = data.customer || {}
+        const address = data.address
+
+        if (address) {
+          // 住所データがある場合は全て自動入力
+          console.log('✅ 顧客住所を取得:', address)
+          setShippingAddress({
+            firstName: address.firstName || apiCustomer.firstName || customer?.firstName || '',
+            lastName: address.lastName || apiCustomer.lastName || customer?.lastName || '',
+            email: apiCustomer.email || customer?.email || '',
+            address1: address.address1 || '',
+            address2: address.address2 || '',
+            city: address.city || '',
+            province: address.province || '',
+            zip: address.zip || '',
+            country: address.country || 'JP',
+            phone: address.phone || apiCustomer.phone || customer?.phone || ''
+          })
+        } else {
+          // 住所がない場合は名前、メール、電話番号のみ自動入力
+          console.log('ℹ️ 住所なし - 名前、メール、電話番号のみ自動入力')
+          setShippingAddress(prev => ({
+            ...prev,
+            firstName: apiCustomer.firstName || customer?.firstName || '',
+            lastName: apiCustomer.lastName || customer?.lastName || '',
+            email: apiCustomer.email || customer?.email || '',
+            phone: apiCustomer.phone || customer?.phone || ''
+          }))
+        }
       }
     } catch (error) {
       console.error('❌ 顧客データ取得エラー:', error)
@@ -461,13 +460,14 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
 
   // フォームのバリデーション
   const validateShippingAddress = () => {
-    const required = ['firstName', 'lastName', 'address1', 'city', 'province', 'zip', 'phone']
+    const required = ['firstName', 'lastName', 'email', 'address1', 'city', 'province', 'zip', 'phone']
     const missing = required.filter(field => !shippingAddress[field as keyof typeof shippingAddress])
 
     if (missing.length > 0) {
       const fieldNames = {
         firstName: t({ JP: '名', EN: 'First Name' }),
         lastName: t({ JP: '姓', EN: 'Last Name' }),
+        email: t({ JP: 'メールアドレス', EN: 'Email' }),
         address1: t({ JP: '番地', EN: 'Address' }),
         city: t({ JP: '市区町村', EN: 'City' }),
         province: t({ JP: '都道府県', EN: 'Prefecture' }),
@@ -511,9 +511,32 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
       // 1. ウォレット生成（draftOrderIdを含むAPIを使用）
       console.log('📝 支払い用ウォレットを生成中...')
       console.log('Order Info:', orderInfo) // デバッグログ追加
+      console.log('Customer Info:', { isAuthenticated, customer }) // 顧客情報確認
 
       // ETH換算の金額を計算（仮想通貨決済用）
       const ethAmount = parseFloat(orderInfo.totalAmount)
+
+      // 顧客メールアドレスを取得（優先順位: 入力されたメール > 認証済み顧客 > ゲスト）
+      console.log('📧 メールアドレス優先順位チェック:', {
+        shippingAddressEmail: shippingAddress.email,
+        customerEmail: customer?.email,
+        isAuthenticated: isAuthenticated
+      })
+
+      // 空文字列もチェック
+      const customerEmail = (shippingAddress.email && shippingAddress.email.trim()) ||
+                           (customer?.email && customer.email.trim()) ||
+                           'guest@crypto-payment.com'
+
+      console.log('📧 最終的に使用するメールアドレス:', customerEmail)
+
+      // メールアドレスが取得できなかった場合はエラー
+      if (customerEmail === 'guest@crypto-payment.com' && !isAuthenticated) {
+        throw new Error(t({
+          JP: 'メールアドレスを入力してください',
+          EN: 'Please enter email address'
+        }))
+      }
 
       const response = await fetch('/api/crypto/generate-address', {
         method: 'POST',
@@ -524,7 +547,9 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
           orderId: orderInfo.orderId, // 必須パラメータを追加
           amount: ethAmount,
           currency: orderInfo.currency || 'SepoliaETH',
-          customerEmail: customer?.email || 'crypto-payment@example.com',
+          customerEmail: customerEmail,
+          walletAddress: connectedWallet?.address, // ユーザーの接続ウォレットアドレス
+          agentCode: orderInfo.agentCode, // 代理店コード
           lineItems: orderInfo.items.map(item => ({
             variantId: item.id,
             quantity: item.quantity,
@@ -585,6 +610,17 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
       }
 
       const wallet = result.data
+      console.log('🔍 API Response wallet data:', wallet)
+      console.log('🔍 wallet.draftOrderId:', wallet.draftOrderId)
+      console.log('🔍 Full wallet object:', JSON.stringify(wallet, null, 2))
+
+      // draftOrderIdが存在するか確認
+      if (!wallet.draftOrderId) {
+        console.error('❌ draftOrderId not found in API response!')
+        console.error('❌ Available keys:', Object.keys(wallet))
+        throw new Error('Draft Order ID not returned from API')
+      }
+
       // generate-address APIのレスポンス形式に合わせて変換
       const walletData = {
         orderId: wallet.orderId,
@@ -596,6 +632,9 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
         items: orderInfo.items,
         draftOrderId: wallet.draftOrderId // 重要な: draftOrderIdを保存
       }
+
+      console.log('💾 Saving walletData with draftOrderId:', walletData.draftOrderId)
+      console.log('💾 Full walletData object:', JSON.stringify(walletData, null, 2))
       
       setPaymentWallet(walletData)
       console.log('✅ ウォレット生成完了:', walletData.walletAddress)
@@ -658,16 +697,45 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
         setTransferStatus({
           isTransferring: false,
           isTransferred: true,
-          transactionHash: txHash
+          transactionHash: txHash as string
         })
 
-        // 3. 支払い監視を開始
-        console.log('👀 支払い監視開始...')
-        startPaymentMonitoring(walletData)
+        // 3. 支払い確認を実行（監視せずに直接確認）
+        console.log('🔄 支払い確認開始...')
+        console.log('🔑 Using draftOrderId from walletData:', walletData.draftOrderId)
+        await confirmPayment({
+          transactionHash: txHash as string,
+          fromAddress: walletInfo.address,
+          toAddress: walletData.walletAddress,
+          amount: walletData.totalAmount,
+          currency: walletData.currency,
+          draftOrderId: walletData.draftOrderId // draftOrderIdを直接渡す
+        })
 
-        // 顧客の残高を取得
-        fetchCustomerBalance(walletData.walletAddress)
-      } catch (txError) {
+        console.log('✅ 支払い確認完了')
+      } catch (txError: unknown) {
+        // ユーザーがキャンセルした場合
+        const isUserRejection =
+          (txError && typeof txError === 'object' && 'code' in txError && txError.code === 4001) ||
+          (txError instanceof Error && (
+            txError.message.includes('User rejected') ||
+            txError.message.includes('User denied') ||
+            txError.message.includes('user rejected')
+          ))
+
+        if (isUserRejection) {
+          console.log('ℹ️ ユーザーがトランザクションをキャンセルしました')
+          setError(t({ JP: 'トランザクションがキャンセルされました', EN: 'Transaction cancelled' }))
+          setTransferStatus({
+            isTransferring: false,
+            isTransferred: false
+          })
+          // キャンセルの場合は処理を中断（エラーをthrowしない）
+          setIsOneClickProcessing(false)
+          return
+        }
+
+        // その他のエラー
         console.error('❌ MetaMaskトランザクションエラー:', txError)
         throw new Error(`MetaMask送金失敗: ${txError instanceof Error ? txError.message : 'Unknown error'}`)
       }
@@ -734,7 +802,7 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
       })
 
       console.log('MetaMask SepoliaETH送金完了:', txHash)
-      
+
       // 送金完了を通知
       setTransferStatus({
         isTransferring: false,
@@ -746,6 +814,26 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
       startPaymentMonitoring(paymentWallet)
 
     } catch (err: unknown) {
+      // ユーザーがキャンセルした場合
+      const isUserRejection =
+        (err && typeof err === 'object' && 'code' in err && err.code === 4001) ||
+        (err instanceof Error && (
+          err.message.includes('User rejected') ||
+          err.message.includes('User denied') ||
+          err.message.includes('user rejected')
+        ))
+
+      if (isUserRejection) {
+        console.log('ℹ️ ユーザーがトランザクションをキャンセルしました')
+        setError(t({ JP: 'トランザクションがキャンセルされました', EN: 'Transaction cancelled' }))
+        setTransferStatus({
+          isTransferring: false,
+          isTransferred: false
+        })
+        return
+      }
+
+      // その他のエラー
       console.error('MetaMask SepoliaETH送金エラー:', err)
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(`SepoliaETH送金エラー: ${errorMessage}`)
@@ -758,41 +846,33 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
   }
 
   // 支払い完了を確認してドラフト注文を正式注文に変換
-  const confirmPayment = async (paymentData: {transactionHash: string, amount: string, fromAddress: string, toAddress: string, currency: string}) => {
+  const confirmPayment = async (paymentData: {transactionHash: string, amount: string, fromAddress: string, toAddress: string, currency: string, draftOrderId?: string}) => {
     try {
       console.log('🔄 支払い完了を確認中...', paymentData)
 
-      // draftOrderIdを取得（複数のソースから試行）
-      let draftOrderId = null
+      // draftOrderIdを取得（Shopify Draft Order IDが必須）
+      let draftOrderId = paymentData.draftOrderId || null
 
-      // 1. paymentWalletからdraftOrderIdを取得（最優先）
-      if (paymentWallet && typeof paymentWallet === 'object' && 'draftOrderId' in paymentWallet) {
+      // パラメータにない場合は、paymentWalletから取得
+      if (!draftOrderId && paymentWallet && typeof paymentWallet === 'object' && 'draftOrderId' in paymentWallet) {
         draftOrderId = paymentWallet.draftOrderId as string
         console.log('📝 DraftOrderId found in paymentWallet:', draftOrderId)
       }
-      // 2. orderInfoから取得を試行
-      else if (orderInfo && typeof orderInfo === 'object' && 'draftOrderId' in orderInfo) {
+      // orderInfoから取得を試行
+      else if (!draftOrderId && orderInfo && typeof orderInfo === 'object' && 'draftOrderId' in orderInfo) {
         draftOrderId = (orderInfo as {draftOrderId: string}).draftOrderId
         console.log('📝 DraftOrderId found in orderInfo:', draftOrderId)
       }
-      // 3. paymentWalletのorderIdから取得を試行
-      else if (paymentWallet?.orderId) {
-        draftOrderId = paymentWallet.orderId
-        console.log('📝 DraftOrderId found in paymentWallet.orderId:', draftOrderId)
-      }
-      // 4. orderInfo.orderIdから取得を試行
-      else if (orderInfo.orderId) {
-        draftOrderId = orderInfo.orderId
-        console.log('📝 DraftOrderId found in orderInfo.orderId:', draftOrderId)
-      }
 
       if (!draftOrderId) {
-        console.error('❌ DraftOrderId not found in any source')
+        console.error('❌ Shopify Draft Order ID not found')
         console.error('orderInfo:', orderInfo)
         console.error('paymentWallet:', paymentWallet)
         console.error('paymentData:', paymentData)
         return
       }
+
+      console.log('✅ Using draftOrderId:', draftOrderId)
 
       console.log('📤 送信するデータ:', {
         draftOrderId,
@@ -823,6 +903,44 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
 
       if (result.success) {
         console.log('✅ ドラフト注文が正式注文に変換されました:', result.data.orderId)
+
+        // 支払い状態を更新（完了メッセージを表示するため）
+        setPaymentStatus({
+          orderId: orderInfo.orderId,
+          walletAddress: paymentData.toAddress,
+          isPaid: true,
+          amount: paymentData.amount,
+          transactionHash: paymentData.transactionHash
+        })
+
+        // 支払い確認成功後、住所をShopifyに保存（ログイン済みの場合のみ）
+        if (isAuthenticated) {
+          try {
+            console.log('💾 住所をShopifyに保存中...')
+            const addressResponse = await fetch('/api/customer/update-address', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                address: shippingAddress
+              }),
+            })
+
+            const addressResult = await addressResponse.json()
+            if (addressResult.success) {
+              console.log('✅ 住所をShopifyに保存しました')
+            } else {
+              console.error('⚠️ 住所の保存に失敗:', addressResult.message)
+            }
+          } catch (addressError) {
+            console.error('⚠️ 住所保存エラー:', addressError)
+            // 住所保存エラーは致命的ではないので続行
+          }
+        }
+
+        // 5秒後のリダイレクトは既存のuseEffectが処理する
+        // (paymentStatus?.isPaid && transferStatus?.isTransferred の条件が満たされる)
       } else {
         console.error('❌ 支払い確認エラー:', result.error)
       }
@@ -936,13 +1054,24 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
     }
   }, [useManualAmount, paymentWallet?.totalAmount, manualAmount])
 
-  // 支払い完了時の処理
-  useEffect(() => {
-    if (paymentStatus?.isPaid && transferStatus?.isTransferred) {
-      console.log('✅ 支払い完了 - カートをクリアして代理店TOPへリダイレクト')
+  // 支払い完了時の処理（一度だけ実行）
+  const redirectExecuted = useRef(false)
 
-      // 2秒後にモーダルを閉じてリダイレクト
+  // モーダルが閉じたらフラグをリセット
+  useEffect(() => {
+    if (!isOpen) {
+      redirectExecuted.current = false
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (paymentStatus?.isPaid && transferStatus?.isTransferred && !redirectExecuted.current) {
+      console.log('✅ 支払い完了 - カートをクリアして代理店TOPへリダイレクト')
+      redirectExecuted.current = true
+
+      // 5秒後にモーダルを閉じてリダイレクト
       const timer = setTimeout(() => {
+        console.log('🔄 リダイレクト実行中...')
         // カートをクリア
         clearCart()
 
@@ -951,12 +1080,13 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
 
         // 代理店TOPにリダイレクト
         const agentCode = orderInfo.agentCode || 'MAIN'
-        router.push(`/${agentCode}/products`)
-      }, 2000)
+        console.log('📍 リダイレクト先:', `/${agentCode}/`)
+        router.push(`/${agentCode}/`)
+      }, 5000)
 
       return () => clearTimeout(timer)
     }
-  }, [paymentStatus?.isPaid, transferStatus?.isTransferred, clearCart, onClose, router, orderInfo.agentCode])
+  }, [paymentStatus?.isPaid, transferStatus?.isTransferred, orderInfo.agentCode])
 
   if (!isOpen) return null
 
@@ -1157,6 +1287,19 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
                   placeholder={t({ JP: '太郎', EN: 'Taro' })}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                {t({ JP: 'メールアドレス', EN: 'Email Address' })} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="email"
+                value={shippingAddress.email}
+                onChange={(e) => setShippingAddress({ ...shippingAddress, email: e.target.value })}
+                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:border-green-500 focus:outline-none"
+                placeholder={t({ JP: 'example@email.com', EN: 'example@email.com' })}
+              />
             </div>
 
             <div>
@@ -1437,6 +1580,12 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
               </div>
             )}
 
+            {/* デバッグ: 状態表示 */}
+            <div className="mb-4 p-4 bg-gray-800 rounded text-xs">
+              <div>paymentStatus?.isPaid: {String(paymentStatus?.isPaid)}</div>
+              <div>transferStatus?.isTransferred: {String(transferStatus?.isTransferred)}</div>
+            </div>
+
             {/* 支払い完了通知 */}
             {paymentStatus?.isPaid && transferStatus?.isTransferred && (
               <div className="mb-6 bg-gradient-to-r from-green-500/20 to-blue-500/20 border-2 border-green-400/50 rounded-xl p-6 shadow-lg animate-pulse">
@@ -1448,10 +1597,10 @@ export default function CryptoPaymentModal({ isOpen, onClose, orderInfo, connect
                   </div>
                 </div>
                 <h3 className="text-2xl font-bold text-green-400 text-center mb-2">
-                  {t({ JP: '🎉 支払い完了！', EN: '🎉 Payment Completed!' })}
+                  {t({ JP: '処理が完了しました', EN: 'Processing Completed' })}
                 </h3>
                 <p className="text-center text-gray-300 mb-4">
-                  {t({ JP: 'ご購入ありがとうございます。自動的にページが切り替わります...', EN: 'Thank you for your purchase. Redirecting automatically...' })}
+                  {t({ JP: '5秒後に代理店TOPページに戻ります...', EN: 'Returning to agent TOP page in 5 seconds...' })}
                 </p>
                 <div className="flex items-center justify-center">
                   <svg className="animate-spin h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

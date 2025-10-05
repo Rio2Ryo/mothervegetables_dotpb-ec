@@ -12,7 +12,7 @@ class ShopifyStorefrontClient {
   private accessToken: string;
 
   constructor() {
-    this.endpoint = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ENDPOINT || 'https://gfzqyh-gw.myshopify.com/api/2024-01/graphql.json';
+    this.endpoint = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ENDPOINT || 'https://gfzqyh-gw.myshopify.com/api/2024-10/graphql.json';
     this.accessToken = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN || '97cca1d688dcae8d78c95c96a217a9c0';
 
     if (!this.endpoint || !this.accessToken) {
@@ -206,7 +206,7 @@ export async function createCustomer(
         lastName: input.lastName,
         email: input.email,
         password: input.password,
-        phone: input.phone,
+        ...(input.phone && input.phone.trim() !== '' ? { phone: input.phone } : {}),
         acceptsMarketing: input.acceptsMarketing,
       },
     };
@@ -281,7 +281,7 @@ export async function createCustomerAndLogin(
         lastName: input.lastName,
         email: input.email,
         password: input.password,
-        phone: input.phone,
+        ...(input.phone && input.phone.trim() !== '' ? { phone: input.phone } : {}),
         acceptsMarketing: input.acceptsMarketing,
       },
     };
@@ -310,17 +310,39 @@ export async function createCustomerAndLogin(
       };
     }
 
-    // 顧客作成成功後、自動ログイン
+    // 顧客作成成功後、自動ログイン（リトライロジック付き）
     console.log('Customer created successfully, attempting login...');
-    const loginResult = await createCustomerAccessToken({
-      email: input.email,
-      password: input.password,
-    });
 
-    if (loginResult.errors || !loginResult.customerAccessToken) {
+    // Shopifyのデータベース反映を待つためにリトライ
+    let loginResult;
+    const retries = 3;
+    let lastError;
+
+    for (let i = 0; i < retries; i++) {
+      if (i > 0) {
+        // 2回目以降は少し待機
+        console.log(`Login retry ${i}/${retries - 1}, waiting 1 second...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      loginResult = await createCustomerAccessToken({
+        email: input.email,
+        password: input.password,
+      });
+
+      if (!loginResult.errors && loginResult.customerAccessToken) {
+        console.log('Login successful after', i + 1, 'attempts');
+        break;
+      }
+
+      lastError = loginResult.errors;
+      console.log(`Login attempt ${i + 1} failed:`, loginResult.errors);
+    }
+
+    if (loginResult?.errors || !loginResult?.customerAccessToken) {
       return {
         customer: result.customer,
-        errors: loginResult.errors || [{
+        errors: lastError || [{
           code: 'LOGIN_FAILED',
           field: ['email', 'password'],
           message: 'ログインに失敗しました',

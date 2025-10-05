@@ -47,7 +47,7 @@ interface MetaMaskShopifyCartContextType {
   metamask: ReturnType<typeof useMetaMaskAuth>
   cart: ReturnType<typeof useCart>
   language: ReturnType<typeof useLanguage>
-  handleCryptoCheckout: () => Promise<{orderId: string, walletAddress: string, totalAmount: string, currency: string, items: unknown[]}>
+  handleCryptoCheckout: () => Promise<{orderId: string}>
   handleCreditCardCheckout: () => Promise<void>
 }
 
@@ -70,13 +70,11 @@ export function MetaMaskShopifyCartProvider({ children }: { children: React.Reac
     try {
       console.log('Processing crypto payment with wallet:', metamask.address)
 
-      // OrderIDとPayment Addressを必ず同じタイミングで生成
-      const cryptoPaymentData = await cart.generateCryptoPayment(metamask.address)
-      
-      console.log('OrderID and Payment Address generated:', {
-        orderId: cryptoPaymentData.orderId,
-        address: cryptoPaymentData.walletAddress,
-        totalAmount: cryptoPaymentData.totalAmount
+      // OrderIDを生成
+      const cryptoPaymentData = await cart.generateCryptoPayment()
+
+      console.log('OrderID generated:', {
+        orderId: cryptoPaymentData.orderId
       })
 
       // 支払い画面に遷移またはモーダルを表示

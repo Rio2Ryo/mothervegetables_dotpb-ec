@@ -15,10 +15,10 @@ export function useEthPrice() {
   const [ethPriceInUsd, setEthPriceInUsd] = useState<number>(3000) // デフォルト値
 
   useEffect(() => {
-    // ランダムなETH価格を生成（0.0010-0.0019の範囲）
+    // ランダムなETH価格を生成（0.0001-0.00019の範囲）
     const generateRandomEthPrice = () => {
-      const min = 0.0010
-      const max = 0.0019
+      const min = 0.0001
+      const max = 0.00019
       return Math.random() * (max - min) + min
     }
 

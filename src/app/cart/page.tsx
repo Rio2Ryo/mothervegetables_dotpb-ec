@@ -12,17 +12,6 @@ import { usePriceGuarantee } from '@/contexts/PriceGuaranteeContext'
 import PriceGuaranteeStatus from '@/components/PriceGuaranteeStatus'
 import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
 
-// MetaMask型定義
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
-      on?: (event: string, callback: (...args: unknown[]) => void) => void
-      removeListener?: (event: string, callback: (...args: unknown[]) => void) => void
-    }
-  }
-}
-
 export default function CartPage() {
   const { state, cart, language, handleCreditCardCheckout } = useMetaMaskShopifyCart()
   const { state: cartState, generateCryptoPayment } = useCart()
@@ -77,24 +66,30 @@ export default function CartPage() {
                              chainId === '0x1' ? 'Ethereum Mainnet' :
                              `Network ${chainId}`
 
-          setWalletInfo({
+          const walletData = {
             address,
             balance: balanceInEth,
             network: networkName
-          })
+          }
+
+          setWalletInfo(walletData)
 
           console.log('✅ ウォレット情報取得完了')
+          return walletData
         } else {
           console.log('⚠️ MetaMaskにアカウントが接続されていません')
           setWalletInfo(null)
+          return null
         }
       } else {
         console.log('❌ MetaMaskが検出されませんでした')
         setWalletInfo(null)
+        return null
       }
     } catch (err) {
       console.error('❌ ウォレット情報取得エラー:', err)
       setWalletInfo(null)
+      return null
     } finally {
       setIsConnectingWallet(false)
     }
@@ -105,9 +100,9 @@ export default function CartPage() {
       setIsProcessing(true)
 
       // まずウォレット情報を取得
-      await fetchWalletInfo()
+      const currentWalletInfo = await fetchWalletInfo()
 
-      if (!walletInfo) {
+      if (!currentWalletInfo) {
         alert(t({
           JP: 'MetaMaskの接続に失敗しました。MetaMaskがインストールされていることを確認してください。',
           EN: 'Failed to connect MetaMask. Please ensure MetaMask is installed.'
@@ -142,9 +137,9 @@ export default function CartPage() {
       // 注文情報を準備（生成されたOrderIDを使用）
       const newOrderInfo = {
         orderId: cryptoPaymentData.orderId, // 必ず同時生成されたOrderIDを使用
+        walletAddress: currentWalletInfo.address, // 取得したウォレットアドレスを使用
         totalAmount: clampedETH, // ETH換算金額を使用（テスト用に制限）
         currency: 'SepoliaETH',
-        walletAddress: cryptoPaymentData.data?.address || cryptoPaymentData.walletAddress,
         items: cart.state.items.map(item => ({
           id: item.variantId,
           name: item.title,
@@ -154,7 +149,7 @@ export default function CartPage() {
       }
 
       console.log('📦 Order Info:', newOrderInfo)
-      console.log('💼 Wallet Info:', walletInfo)
+      console.log('💼 Wallet Info:', currentWalletInfo)
 
       setOrderInfo(newOrderInfo)
       setShowCryptoModal(true)

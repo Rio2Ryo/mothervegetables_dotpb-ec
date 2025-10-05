@@ -3,6 +3,7 @@ import { getCustomer } from '@/lib/shopify/storefront-client';
 
 export async function GET(request: NextRequest) {
   try {
+    // Shopifyカスタマートークン
     const customerAccessToken = request.cookies.get('customerAccessToken')?.value;
 
     if (!customerAccessToken) {

@@ -30,16 +30,17 @@ export async function POST(request: NextRequest) {
     const completedOrder = await orderManager.completeDraftOrder(draftOrderId)
     console.log('Draft order completed:', completedOrder.draftOrder.order.id)
 
-    // 暗号通貨決済情報をメタフィールドとして保存
-    console.log('Adding crypto payment info to completed order...')
-    await orderManager.addCryptoPaymentInfo(completedOrder.draftOrder.order.id, {
-      transactionHash,
-      fromAddress,
-      toAddress,
-      amount: amount.toString(),
-      currency: currency || 'ETH'
-    })
-    console.log('Crypto payment info added successfully')
+    // 暗号通貨決済情報をメタフィールドとして保存（一時的にスキップ）
+    console.log('Skipping crypto payment metafield (requires customer permissions)...')
+    // TODO: Enable after adding read_customers/write_customers permissions
+    // await orderManager.addCryptoPaymentInfo(completedOrder.draftOrder.order.id, {
+    //   transactionHash,
+    //   fromAddress,
+    //   toAddress,
+    //   amount: amount.toString(),
+    //   currency: currency || 'ETH'
+    // })
+    console.log('Order completed without metafields')
 
     // 包括的なメタデータを保存
     console.log('Adding comprehensive metadata to completed order...')

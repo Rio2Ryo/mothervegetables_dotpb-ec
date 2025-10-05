@@ -1,44 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Header from '@/components/Header'
-import Hero from '@/components/Hero'
-import ProductCards from '@/components/ProductCards'
-import ProjectOverview from '@/components/ProjectOverview'
-import IndustryApproach from '@/components/IndustryApproach'
-import TeamMembers from '@/components/TeamMembers'
-import Partners from '@/components/Partners'
-import TokenInfo from '@/components/TokenInfo'
-import Footer from '@/components/Footer'
-import LoadingScreen from '@/components/LoadingScreen'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    // Simulate initial loading
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1500)
+    // Redirect to MAIN agent page
+    router.replace('/MAIN/products')
+  }, [router])
 
-    return () => clearTimeout(timer)
-  }, [])
-
-  return (
-    <>
-      {isLoading && <LoadingScreen />}
-      <main className="min-h-screen text-white relative">
-        <Header />
-        <Hero />
-        <ProductCards />
-        <ProjectOverview />
-        <IndustryApproach />
-        <TeamMembers />
-        <Partners />
-        <TokenInfo />{/* */}
-        {/*<FAQ />*/}
-        <Footer />
-      </main>
-    </>
-  )
+  return null
 }

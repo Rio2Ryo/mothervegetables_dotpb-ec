@@ -27,7 +27,7 @@ export class ShopifyOrderManager {
     orderId?: string
   }) {
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/orders.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/orders.json`,
       {
         method: 'POST',
         headers: {
@@ -107,7 +107,7 @@ export class ShopifyOrderManager {
 
     for (const metafield of metafields) {
       await fetch(
-        `https://${this.storeDomain}/admin/api/2024-01/orders/${orderId}/metafields.json`,
+        `https://${this.storeDomain}/admin/api/2024-10/orders/${orderId}/metafields.json`,
         {
           method: 'POST',
           headers: {
@@ -122,7 +122,7 @@ export class ShopifyOrderManager {
 
   async updateOrderStatus(orderId: string, status: 'paid' | 'pending' | 'cancelled') {
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/orders/${orderId}.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/orders/${orderId}.json`,
       {
         method: 'PUT',
         headers: {
@@ -148,7 +148,7 @@ export class ShopifyOrderManager {
 
   async getOrder(orderId: string) {
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/orders/${orderId}.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/orders/${orderId}.json`,
       {
         headers: {
           'X-Shopify-Access-Token': this.adminToken
@@ -165,7 +165,7 @@ export class ShopifyOrderManager {
 
   async getOrderMetafields(orderId: string) {
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/orders/${orderId}/metafields.json`,
+      `https://${this.storeDomain}/admin/api/2024-10/orders/${orderId}/metafields.json`,
       {
         headers: {
           'X-Shopify-Access-Token': this.adminToken
@@ -182,7 +182,7 @@ export class ShopifyOrderManager {
 
   async findOrdersByCryptoAddress(cryptoAddress: string) {
     const response = await fetch(
-      `https://${this.storeDomain}/admin/api/2024-01/orders.json?status=any&tags=crypto-payment&limit=250`,
+      `https://${this.storeDomain}/admin/api/2024-10/orders.json?status=any&tags=crypto-payment&limit=250`,
       {
         headers: {
           'X-Shopify-Access-Token': this.adminToken

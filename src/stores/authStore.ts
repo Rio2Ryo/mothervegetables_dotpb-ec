@@ -20,7 +20,6 @@ interface AuthState {
   // アクション
   login: (credentials: LoginFormData) => Promise<boolean>;
   register: (data: RegisterFormData) => Promise<boolean>;
-  googleLogin: (customer: Customer) => void;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   
@@ -126,16 +125,6 @@ export const useAuthStore = create<AuthState>()(
           });
           return false;
         }
-      },
-
-      googleLogin: (customer: Customer) => {
-        set({
-          customer,
-          isAuthenticated: true,
-          loading: false,
-          error: null,
-          modal: { ...get().modal, isOpen: false },
-        });
       },
 
       logout: async () => {

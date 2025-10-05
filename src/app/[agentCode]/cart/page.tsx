@@ -12,18 +12,6 @@ import { useParams } from 'next/navigation'
 import { usePriceGuarantee } from '@/contexts/PriceGuaranteeContext'
 import PriceGuaranteeStatus from '@/components/PriceGuaranteeStatus'
 import ExpiredItemCleanup from '@/components/ExpiredItemCleanup'
-
-// MetaMask型定義
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
-      on?: (event: string, callback: (...args: unknown[]) => void) => void
-      removeListener?: (event: string, callback: (...args: unknown[]) => void) => void
-    }
-  }
-}
-
 export default function AgentCartPage() {
   const params = useParams()
   const agentCode = params.agentCode as string
@@ -145,34 +133,50 @@ export default function AgentCartPage() {
         return
       }
 
-      // OrderIDとPayment Addressを必ず同じタイミングで生成
+      // OrderIDを生成（Payment AddressとDraft Orderの作成はCryptoPaymentModalで実行）
       const cryptoPaymentData = await generateCryptoPayment()
 
       console.log('🎯 Crypto Payment Data:', cryptoPaymentData)
 
-      // ETH換算の金額を計算
-      const jpyToEthRate = 500000
-      const totalPriceJPY = cartState.totalPrice
-      const totalPriceETH = (totalPriceJPY / jpyToEthRate).toFixed(6)
+      // カート内商品の価格保証から合計金額を計算
+      let totalETH = 0
+      const hasValidPriceGuarantees = cartState.items.every(item => {
+        const guarantee = priceGuarantees.get(item.variantId)
+        return guarantee && isPriceValid(item.variantId)
+      })
 
-      const minEth = 0.001
-      const maxEth = 0.01
-      const clampedETH = Math.max(minEth, Math.min(maxEth, parseFloat(totalPriceETH))).toFixed(6)
+      if (!hasValidPriceGuarantees) {
+        // 価格保証が切れている場合はエラー
+        alert(t({
+          JP: '価格保証が期限切れです。カートページをリロードしてください。',
+          EN: 'Price guarantee has expired. Please reload the cart page.'
+        }))
+        setIsProcessing(false)
+        return
+      }
 
-      console.log('💰 Price Conversion:', {
-        jpy: totalPriceJPY,
-        eth: totalPriceETH,
-        clampedETH: clampedETH,
-        rate: jpyToEthRate
+      cartState.items.forEach(item => {
+        const guarantee = priceGuarantees.get(item.variantId)
+        if (guarantee && isPriceValid(item.variantId)) {
+          totalETH += guarantee.ethPrice * item.quantity
+        }
+      })
+
+      const clampedETH = totalETH.toFixed(6)
+
+      console.log('💰 Cart Total Amount:', {
+        totalAmount: clampedETH,
+        currency: 'SepoliaETH',
+        itemsCount: cartState.items.length
       })
 
       // 注文情報を準備（代理店情報を含む）
       const newOrderInfo = {
-        orderId: cryptoPaymentData.orderId,
+        orderId: cryptoPaymentData.orderId, // OrderIDのみ
+        walletAddress: currentWalletInfo.address, // 接続されたウォレットアドレス
         totalAmount: clampedETH,
         currency: 'SepoliaETH',
         agentCode: agentCode,
-        walletAddress: cryptoPaymentData.data?.address || cryptoPaymentData.walletAddress,
         items: cartState.items.map(item => ({
           id: item.variantId,
           name: item.title,

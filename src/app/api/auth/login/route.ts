@@ -20,20 +20,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Shopifyでアクセストークンを作成
+    // Shopifyでアクセストークンを作成（リトライロジック付き）
     console.log('Attempting to create customer access token...');
-    const tokenResult = await createCustomerAccessToken({ email, password });
-    console.log('Token result:', JSON.stringify(tokenResult, null, 2));
 
-    if (tokenResult.errors || !tokenResult.customerAccessToken) {
+    let tokenResult;
+    const retries = 3;
+    let lastError;
+
+    for (let i = 0; i < retries; i++) {
+      if (i > 0) {
+        console.log(`Login retry ${i}/${retries - 1}, waiting 500ms...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      tokenResult = await createCustomerAccessToken({ email, password });
+      console.log(`Login attempt ${i + 1} - Token result:`, JSON.stringify(tokenResult, null, 2));
+
+      if (!tokenResult.errors && tokenResult.customerAccessToken) {
+        console.log('Login successful after', i + 1, 'attempts');
+        break;
+      }
+
+      lastError = tokenResult.errors;
+    }
+
+    if (tokenResult?.errors || !tokenResult?.customerAccessToken) {
       // エラーコードに基づいてメッセージをカスタマイズ
       let errorMessage = 'ログインに失敗しました';
-      if (tokenResult.errors?.[0]) {
-        const errorCode = tokenResult.errors[0].code;
+      if (lastError?.[0]) {
+        const errorCode = lastError[0].code;
         if (errorCode === 'UNIDENTIFIED_CUSTOMER') {
           errorMessage = 'メールアドレスまたはパスワードが正しくありません';
         } else {
-          errorMessage = tokenResult.errors[0].message || errorMessage;
+          errorMessage = lastError[0].message || errorMessage;
         }
       }
 
@@ -76,12 +95,31 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Login API error:', error);
+
+    // エラーメッセージからTHROTTLEDエラーを検出
+    let errorMessage = 'サーバーエラーが発生しました';
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      if (error.message.includes('THROTTLED') || error.message.includes('上限に達しました')) {
+        errorMessage = '短時間に多数のリクエストが送信されました。しばらく待ってから再度お試しください。';
+        statusCode = 429; // Too Many Requests
+      } else if (error.message.includes('GraphQL errors:')) {
+        // GraphQLエラーメッセージをそのまま使用
+        const match = error.message.match(/GraphQL errors: (.+)/);
+        if (match) {
+          errorMessage = match[1];
+          statusCode = 400;
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         success: false,
-        message: 'サーバーエラーが発生しました',
+        message: errorMessage,
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }

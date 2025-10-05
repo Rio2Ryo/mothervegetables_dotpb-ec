@@ -8,15 +8,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('Request body:', body)
 
-    const { orderId, amount, currency, lineItems, customerEmail, walletAddress, shippingAddress } = body
+    const { orderId, amount, currency, lineItems, customerEmail, walletAddress, shippingAddress, agentCode } = body
+
+    console.log('📧 Received customerEmail:', customerEmail)
+    console.log('🏢 Received agentCode:', agentCode)
+    console.log('💼 Received walletAddress:', walletAddress)
 
     if (!orderId || !amount || !lineItems) {
       console.error('Missing required parameters:', { orderId: !!orderId, amount: !!amount, lineItems: !!lineItems })
       return NextResponse.json(
-        { 
+        {
           success: false,
           error: 'Order ID, amount, and line items are required',
           details: `Missing: orderId=${!!orderId}, amount=${!!amount}, lineItems=${!!lineItems}`
+        },
+        { status: 400 }
+      )
+    }
+
+    // メールアドレスのバリデーション
+    if (!customerEmail || customerEmail === 'guest@crypto-payment.com') {
+      console.error('❌ Invalid or missing customer email:', customerEmail)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Customer email is required',
+          details: 'Valid customer email must be provided'
         },
         { status: 400 }
       )
@@ -66,7 +83,8 @@ export async function POST(request: NextRequest) {
         customerEmail,
         walletAddress,
         orderId,
-        shippingAddress
+        shippingAddress,
+        agentCode
       })
       console.log('✅ Shopify draft order created:', draftOrder.draftOrder.id)
     } catch (shopifyError) {

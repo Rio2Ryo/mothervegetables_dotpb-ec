@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getStorefrontClient } from '@/lib/shopify/storefront-client'
+import { shopifyStorefront } from '@/lib/shopify/storefront-client'
 
 const CUSTOMER_QUERY = `
   query getCustomer($customerAccessToken: String!) {
@@ -28,7 +28,7 @@ const CUSTOMER_QUERY = `
 export async function GET(request: NextRequest) {
   try {
     // クッキーからアクセストークンを取得
-    const accessToken = request.cookies.get('shopify_customer_token')?.value
+    const accessToken = request.cookies.get('customerAccessToken')?.value
 
     if (!accessToken) {
       return NextResponse.json(
@@ -37,15 +37,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const client = getStorefrontClient()
-
-    const response = await client.request(CUSTOMER_QUERY, {
-      variables: {
-        customerAccessToken: accessToken
-      }
-    })
-
-    const data = response.data as {
+    const data = await shopifyStorefront.request(CUSTOMER_QUERY, {
+      customerAccessToken: accessToken
+    }) as {
       customer: {
         id: string
         email: string
